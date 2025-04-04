@@ -1,9 +1,8 @@
-# main.py - DigamberGPT (Shayari AI + Google Sheets Premium System)
-
 import streamlit as st
 import google.generativeai as genai
 import requests
 import gspread
+import json
 from oauth2client.service_account import ServiceAccountCredentials
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -19,9 +18,10 @@ api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel('models/gemini-2.0-flash')
 
-# **Google Sheets Authentication**
+# **Google Sheets Authentication Fix**
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["GOOGLE_SHEETS_CREDENTIALS"], scope)
+creds_json = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY/edit").sheet1
 

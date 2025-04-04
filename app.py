@@ -1,57 +1,55 @@
 import streamlit as st
 import google.generativeai as genai
+import toml
 
-# Streamlit page config
-st.set_page_config(page_title="Gemini Chatbot", page_icon="🤖", layout="centered")
+# Load API key from secrets
+with open("secret.toml", "r") as f:
+    secrets = toml.load(f)
 
-# Apply custom CSS for stylish UI
-st.markdown("""
+genai.configure(api_key=secrets["GEMINI_API_KEY"])
+
+# Streamlit UI Setup with Full Neon Look
+st.set_page_config(page_title="DIGAMBERGPT", page_icon="🤖")
+
+st.markdown(
+    """
     <style>
-    body {
-        background-color: #0e1117;
-        color: white;
-    }
-    .stChatInput > div {
-        border: 1px solid #ff4b4b;
-        border-radius: 10px;
-        padding: 10px;
-    }
+        body {
+            background-color: black;
+            color: #00FFFF;
+            font-family: 'Courier New', monospace;
+        }
+        .stTextInput, .stTextArea, .stButton > button {
+            background-color: #111;
+            color: #0ff;
+            border: 2px solid #0ff;
+            padding: 10px;
+            font-size: 18px;
+        }
+        .stTextInput:hover, .stTextArea:hover, .stButton > button:hover {
+            background-color: #222;
+            color: #fff;
+            border: 2px solid #ff0;
+        }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
-# Gemini API Key
-GEMINI_API_KEY = "AIzaSyCHXLmu1SIn8NVCkkSLORILH7eMXzSlA_k"
+st.markdown("<h1 style='text-align: center; color: #0ff; font-size: 50px;'>DIGAMBERGPT 🤖</h1>", unsafe_allow_html=True)
 
-# Configure Gemini API
-genai.configure(api_key=GEMINI_API_KEY)
-
-# Chatbot UI
-st.title("🤖 Gemini AI Chatbot")
-st.write("Ask me anything!")
-
-# Initialize session state for messages
-if "messages" not in st.session_state:
-    st.session_state["messages"] = []
-
-# Display previous messages
-for msg in st.session_state["messages"]:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# Chat input
-user_input = st.chat_input("Type your message...")
+st.write("### Ask me anything!")
+user_input = st.text_input("", placeholder="Type your message...")
 
 if user_input:
-    st.session_state["messages"].append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
-    
-    # Gemini API Call
-    model = genai.GenerativeModel("gemini-pro")
+    model = genai.GenerativeModel("gemini-2.0-flash")
     response = model.generate_content(user_input)
-    bot_reply = response.text.strip()
     
-    # Display bot response
-    st.session_state["messages"].append({"role": "assistant", "content": bot_reply})
-    with st.chat_message("assistant"):
-        st.markdown(bot_reply)
+    st.markdown(
+        f"""
+        <div style='border: 2px solid #0ff; padding: 10px; border-radius: 10px; background-color: #111;'>
+            <p style='color: #0ff; font-size: 18px;'>{response.text}</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )

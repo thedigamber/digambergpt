@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import time
 
-# Streamlit Config
+# Page Setup
 st.set_page_config(page_title="DigamberGPT - All In One Shayari AI", layout="centered")
 st.title("DigamberGPT - Sab AI ka Baap (Shayari + Image + Download)")
 st.markdown("Jo bhi poochho, milega shayari mein jawab — ek khoobsurat image ke saath!")
@@ -17,7 +17,7 @@ api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel('models/gemini-2.0-flash')
 
-# Google Sheets Authentication (No JSON parsing now)
+# Google Sheets Authentication
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["GOOGLE_SHEETS_CREDENTIALS"], scope)
 client = gspread.authorize(creds)
@@ -48,9 +48,9 @@ if user_data:
 else:
     sheet.append_row([user_ip, current_time, 1, "no"])
 
+# Response Section
 if prompt:
     with st.spinner("DigamberGPT soch raha hai..."):
-
         final_prompt = (
             "Tum ek AI ho jo har topic (love, coding, life, science) ka jawab shayari mein deta hai."
             f"\nSawaal: {prompt}\nShayari mein jawab do:"
@@ -61,7 +61,7 @@ if prompt:
         except:
             shayari = "Kuchh galti ho gayi bhai... AI thoda emotional ho gaya hai!"
 
-        # Image from Lexica
+        # Image Background from Lexica
         image_url = f"https://lexica.art/api/v1/search?q={prompt}"
         try:
             img_data = requests.get(image_url).json()
@@ -83,11 +83,11 @@ if prompt:
             draw.text((margin, offset), line, font=font, fill="white")
             offset += 40
 
-        # Show Result
+        # Display Shayari & Image
         st.markdown(f"**DigamberGPT ki Shayari:**\n\n{shayari}")
         st.image(background, caption="Shayari Image")
 
-        # Download Option
+        # Download Button
         img_byte_arr = io.BytesIO()
         background.save(img_byte_arr, format='PNG')
         st.download_button(
@@ -97,7 +97,7 @@ if prompt:
             mime="image/png"
         )
 
-        # Hashtag Generator
+        # Bonus: Hashtag Generator
         hashtag_prompt = f"Generate 10 trending Hindi poetry hashtags for this theme: {prompt}"
         try:
             hashtags = model.generate_content(hashtag_prompt).text.strip()

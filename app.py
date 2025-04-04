@@ -8,28 +8,28 @@ from oauth2client.service_account import ServiceAccountCredentials
 from PIL import Image, ImageDraw, ImageFont
 import io
 import time
-import secrets  # Import Secret File
 
 # Streamlit Config
 st.set_page_config(page_title="DigamberGPT - All In One Shayari AI", layout="centered")
 st.title("DigamberGPT - Sab AI ka Baap (Shayari + Image + Download)")
 st.markdown("Jo bhi poochho, milega shayari mein jawab — ek khoobsurat image ke saath!")
 
-# Gemini API Setup
-genai.configure(api_key=secrets.GEMINI_API_KEY)
+# **Gemini API Setup**
+api_key = st.secrets["GEMINI_API_KEY"]
+genai.configure(api_key=api_key)
 model = genai.GenerativeModel('models/gemini-2.0-flash')
 
-# Google Sheets Authentication
+# **Google Sheets Authentication**
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(secrets.GOOGLE_SHEETS_CREDENTIALS, scope)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["GOOGLE_SHEETS_CREDENTIALS"], scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY/edit").sheet1
 
-# User Query Input
+# **User Query Input**
 prompt = st.text_input("Apna sawaal likho yahan:")
 user_ip = st.session_state.get("ip", str(time.time()))
 
-# Check Query Count
+# **Check Query Count (Premium System)**
 rows = sheet.get_all_records()
 user_data = next((row for row in rows if row['user'] == user_ip), None)
 current_time = int(time.time())
@@ -53,7 +53,7 @@ else:
 if prompt:
     with st.spinner("DigamberGPT soch raha hai..."):
 
-        # Shayari Prompt
+        # **Shayari Prompt**
         final_prompt = (
             "Tum ek AI ho jo har topic (love, coding, life, science) ka jawab shayari mein deta hai."
             f"\nSawaal: {prompt}\nShayari mein jawab do:"
@@ -64,7 +64,7 @@ if prompt:
         except:
             shayari = "Kuchh galti ho gayi bhai... AI thoda emotional ho gaya hai!"
 
-        # Image from Lexica
+        # **Image from Lexica**
         image_url = f"https://lexica.art/api/v1/search?q={prompt}"
         try:
             img_data = requests.get(image_url).json()
@@ -73,7 +73,7 @@ if prompt:
         except:
             background = Image.new("RGBA", (600, 600), (30, 30, 30))
 
-        # Shayari Overlay
+        # **Shayari Overlay**
         draw = ImageDraw.Draw(background)
         try:
             font = ImageFont.truetype("arial.ttf", size=28)
@@ -86,11 +86,11 @@ if prompt:
             draw.text((margin, offset), line, font=font, fill="white")
             offset += 40
 
-        # Show Result
+        # **Show Result**
         st.markdown(f"**DigamberGPT ki Shayari:**\n\n{shayari}")
         st.image(background, caption="Shayari Image")
 
-        # Download
+        # **Download**
         img_byte_arr = io.BytesIO()
         background.save(img_byte_arr, format='PNG')
         st.download_button(
@@ -100,7 +100,7 @@ if prompt:
             mime="image/png"
         )
 
-        # Hashtags
+        # **Hashtags**
         hashtag_prompt = f"Generate 10 trending Hindi poetry hashtags for this theme: {prompt}"
         try:
             hashtags = model.generate_content(hashtag_prompt).text.strip()

@@ -1,3 +1,5 @@
+# DigamberGPT - Shayari + Image + Premium System (Google Sheet Based)
+
 import streamlit as st
 import google.generativeai as genai
 import requests
@@ -7,72 +9,61 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import time
 
-# Set API Keys
-genai.configure(api_key="YOUR_GEMINI_API_KEY")
-
-# Gemini Model
-model = genai.GenerativeModel('models/gemini-2.0-flash')
-
-# Streamlit Page Config
+# Streamlit Config
 st.set_page_config(page_title="DigamberGPT - All In One Shayari AI", layout="centered")
 st.title("DigamberGPT - Sab AI ka Baap (Shayari + Image + Download)")
 st.markdown("Jo bhi poochho, milega shayari mein jawab — ek khoobsurat image ke saath!")
 
-# Google Sheets Setup
+# Gemini API Key
+genai.configure(api_key="YOUR_GEMINI_API_KEY")
+model = genai.GenerativeModel('models/gemini-2.0-flash')
+
+# Google Sheet Auth
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("your-google-sheets-credentials.json", scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name("gspread_credentials.json", scope)
 client = gspread.authorize(creds)
-sheet = client.open("DigamberGPT-Premium").sheet1  # Sheet ka naam yahan set karo
+sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY/edit").sheet1
 
-# User Authentication
-user_email = st.text_input("Apna Email ID daalo (for premium access):")
-if not user_email:
-    st.warning("Premium access ke liye email enter karo!")
-    st.stop()
-
-# Check if user is premium
-all_users = sheet.get_all_records()
-premium_users = {row['Email']: row['Type'] for row in all_users}
-user_type = premium_users.get(user_email, "free")
-
-# Free Users Limit
-if user_type == "free":
-    user_time_key = f"{user_email}_time"
-    user_count_key = f"{user_email}_count"
-
-    if user_time_key not in st.session_state:
-        st.session_state[user_time_key] = time.time()
-        st.session_state[user_count_key] = 0
-
-    time_elapsed = time.time() - st.session_state[user_time_key]
-    
-    if time_elapsed > 3600:  # 1 hour reset
-        st.session_state[user_time_key] = time.time()
-        st.session_state[user_count_key] = 0
-
-    if st.session_state[user_count_key] >= 20:
-        st.error("Aap free user hain, aur aapka limit (20 queries/hour) khatam ho chuka hai. Upgrade to premium!")
-        st.stop()
-
-# Input Prompt
+# User Query Input
 prompt = st.text_input("Apna sawaal likho yahan:")
+user_ip = st.session_state.get("ip", str(time.time()))
+
+# Check Query Count
+rows = sheet.get_all_records()
+user_data = next((row for row in rows if row['user'] == user_ip), None)
+current_time = int(time.time())
+
+if user_data:
+    last_time = int(user_data['last'])
+    count = int(user_data['count'])
+    premium = user_data['premium'].lower() == "yes"
+
+    if not premium and current_time - last_time < 3600 and count >= 20:
+        st.warning("Free user ho tum, 20 queries/hour limit poori ho gayi hai. Premium lo aur masti karo!")
+        st.stop()
+    elif current_time - last_time >= 3600:
+        sheet.update_cell(rows.index(user_data)+2, 2, current_time)
+        sheet.update_cell(rows.index(user_data)+2, 3, 1)
+    else:
+        sheet.update_cell(rows.index(user_data)+2, 3, count + 1)
+else:
+    sheet.append_row([user_ip, current_time, 1, "no"])
 
 if prompt:
     with st.spinner("DigamberGPT soch raha hai..."):
-        
-        # Increment query count for free users
-        if user_type == "free":
-            st.session_state[user_count_key] += 1
-        
-        # Shayari Generation
-        final_prompt = f"Tum ek AI ho jo har topic (love, coding, life, science) ka jawab shayari mein deta hai.\nSawaal: {prompt}\nShayari mein jawab do:"
+
+        # Shayari Prompt
+        final_prompt = (
+            "Tum ek AI ho jo har topic (love, coding, life, science) ka jawab shayari mein deta hai."
+            f"\nSawaal: {prompt}\nShayari mein jawab do:"
+        )
         try:
             response = model.generate_content(final_prompt)
             shayari = response.text.strip()
         except:
             shayari = "Kuchh galti ho gayi bhai... AI thoda emotional ho gaya hai!"
 
-        # Image Generation
+        # Image from Lexica
         image_url = f"https://lexica.art/api/v1/search?q={prompt}"
         try:
             img_data = requests.get(image_url).json()
@@ -94,11 +85,11 @@ if prompt:
             draw.text((margin, offset), line, font=font, fill="white")
             offset += 40
 
-        # Display Shayari & Image
+        # Show Result
         st.markdown(f"**DigamberGPT ki Shayari:**\n\n{shayari}")
         st.image(background, caption="Shayari Image")
 
-        # Download Button
+        # Download
         img_byte_arr = io.BytesIO()
         background.save(img_byte_arr, format='PNG')
         st.download_button(
@@ -108,7 +99,7 @@ if prompt:
             mime="image/png"
         )
 
-        # Bonus: Generate Hashtags
+        # Hashtags
         hashtag_prompt = f"Generate 10 trending Hindi poetry hashtags for this theme: {prompt}"
         try:
             hashtags = model.generate_content(hashtag_prompt).text.strip()

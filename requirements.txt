@@ -1,10 +1,9 @@
 streamlit
+google.generativeai
 gspread
 oauth2client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
 requests
-pillow
-google-generativeai
-openai
+Pillow

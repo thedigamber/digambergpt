@@ -1,13 +1,11 @@
-import streamlit as st
 import google.generativeai as genai
+import streamlit as st
 
-# API key streamlit secrets se lo
-api_key = st.secrets["GEMINI_API_KEY"]
+# API key load karna (Secrets se ya direct)
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-genai.configure(api_key=api_key)
-
-# Gemini model load karo
-model = genai.GenerativeModel('gemini-pro')
+# Sahi Model Load Karna
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 st.set_page_config(page_title="DigamberGPT - Gemini Shayari AI", layout="centered")
 st.title("DigamberGPT - Poetic AI Powered by Gemini")
@@ -22,11 +20,8 @@ if prompt:
             "lekin har jawab shayari mein deta hai. Ab iska jawab do shayari ke style mein:\n\n"
             f"{prompt}"
         )
-
-        response = model.generate_content(final_prompt)
-
-        if response and response.candidates:
-            shayari_output = response.candidates[0].content  
-            st.markdown(f"**DigamberGPT:**\n\n{shayari_output}")
-        else:
-            st.error("Koi response nahi mila. API key check karo ya Gemini model active hai ki nahi dekho.")
+        try:
+            response = model.generate_content(final_prompt)
+            st.markdown(f"**DigamberGPT:**\n\n{response.text}")
+        except Exception as e:
+            st.error(f"Error: {e}")

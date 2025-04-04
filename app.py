@@ -2,7 +2,7 @@ import google.generativeai as genai
 import streamlit as st
 
 # Tera Gemini API key
-genai.configure(api_key="AIzaSyCSL3vVk4wNQJtEHS9R862foLFEKPoLw5c")
+genai.configure(api_key="AIzaSyCHXLmu1SIn8NVCkkSLORILH7eMXzSlA_k")
 
 # Gemini model load karna
 model = genai.GenerativeModel('gemini-pro')

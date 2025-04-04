@@ -1,4 +1,4 @@
-# DigamberGPT - Shayari + Image + Premium System (Google Sheet Based)
+# main.py - DigamberGPT (Shayari AI + Google Sheets Premium System)
 
 import streamlit as st
 import google.generativeai as genai
@@ -8,19 +8,20 @@ from oauth2client.service_account import ServiceAccountCredentials
 from PIL import Image, ImageDraw, ImageFont
 import io
 import time
+import secrets  # Import Secret File
 
 # Streamlit Config
 st.set_page_config(page_title="DigamberGPT - All In One Shayari AI", layout="centered")
 st.title("DigamberGPT - Sab AI ka Baap (Shayari + Image + Download)")
 st.markdown("Jo bhi poochho, milega shayari mein jawab — ek khoobsurat image ke saath!")
 
-# Gemini API Key
-genai.configure(api_key="YOUR_GEMINI_API_KEY")
+# Gemini API Setup
+genai.configure(api_key=secrets.GEMINI_API_KEY)
 model = genai.GenerativeModel('models/gemini-2.0-flash')
 
-# Google Sheet Auth
+# Google Sheets Authentication
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("gspread_credentials.json", scope)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(secrets.GOOGLE_SHEETS_CREDENTIALS, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY/edit").sheet1
 

@@ -1,67 +1,68 @@
-import toml
-secrets = toml.load(".streamlit/secrets.toml")
-api_key = secrets["gemini"]["api_key"]
-service_account_token = secrets["gemini"]["service_account_token"]
 import streamlit as st
+import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 import google.generativeai as genai
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 
-st.set_page_config(page_title="DigamberGPT", layout="centered")
+# Google Sheet & Gemini API settings
+SHEET_ID = '11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY'
+SHEET_NAME = 'Sheet1'
 
-# Load API keys and credentials from Streamlit secrets
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# Load user data from Google Sheets
+def load_user_data():
+    creds = Credentials.from_service_account_file("deductive-team-455314-b0-84c8be162979.json")
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
 
-# Setup Google Sheets credentials
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["GOOGLE_SHEETS_CREDENTIALS"], scope)
-client = gspread.authorize(creds)
+def authenticate(email, password, user_df):
+    user = user_df[(user_df['email'] == email) & (user_df['password'] == password)]
+    return not user.empty
 
-# Function to get responses from Gemini
-def get_response_from_gemini(prompt):
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    response = model.generate_content(prompt)
-    return response.text
+# Gemini setup
+genai.configure(api_key="84c8be162979fc2b2bd6f569b590e1bc23b4e4c3")
+model = genai.GenerativeModel("gemini-pro")
+chat = model.start_chat(history=[])
 
-# Streamlit UI
-st.title("DigamberGPT - Gemini + Google Sheets")
+# Streamlit App
+st.set_page_config(page_title="Gemini Chatbot", layout="centered")
+st.title("Secure Gemini Chatbot")
 
-user_input = st.text_area("Apna sawaal likho...")
+# Session setup
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
 
-if st.button("Bhej do Gemini ko"):
-    if user_input.strip() == "":
-        st.warning("Kuchh likhna toh padega bhai!")
-    else:
-        with st.spinner("Gemini soch raha hai..."):
-            output = get_response_from_gemini(user_input)
-            st.success("Gemini ka jawab mil gaya:")
-            st.write(output)
+if not st.session_state.logged_in:
+    st.subheader("Login")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        df = load_user_data()
+        if authenticate(email, password, df):
+            st.session_state.logged_in = True
+            st.success("Login successful!")
+            st.experimental_rerun()
+        else:
+            st.error("Invalid email or password.")
+else:
+    st.success("Welcome to the chat!")
 
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-# Load Google Sheets credentials
-google_creds = {
-    "type": secrets["google_sheets"]["type"],
-    "project_id": secrets["google_sheets"]["project_id"],
-    "private_key_id": secrets["google_sheets"]["private_key_id"],
-    "private_key": secrets["google_sheets"]["private_key"],
-    "client_email": secrets["google_sheets"]["client_email"],
-    "client_id": secrets["google_sheets"]["client_id"],
-    "auth_uri": secrets["google_sheets"]["auth_uri"],
-    "token_uri": secrets["google_sheets"]["token_uri"],
-    "auth_provider_x509_cert_url": secrets["google_sheets"]["auth_provider_x509_cert_url"],
-    "client_x509_cert_url": secrets["google_sheets"]["client_x509_cert_url"]
-}
+    for msg in st.session_state.messages:
+        st.markdown(f"**{msg['role'].capitalize()}:** {msg['text']}")
 
-# Set up gspread client
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-credentials = ServiceAccountCredentials.from_json_keyfile_dict(google_creds, scope)
-gc = gspread.authorize(credentials)
+    user_input = st.text_input("Type your message:")
 
-# Open the spreadsheet by ID
-sheet = gc.open_by_key("11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY").sheet1
+    if user_input:
+        st.session_state.messages.append({"role": "user", "text": user_input})
+        response = chat.send_message(user_input)
+        st.session_state.messages.append({"role": "ai", "text": response.text})
+        st.experimental_rerun()
 
-# Example read
-first_row = sheet.row_values(1)
-print("First row from Google Sheet:", first_row)
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.messages = []
+        st.experimental_rerun()

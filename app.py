@@ -70,8 +70,6 @@ def display_typing_effect(text):
 if submitted and query.strip():
     st.session_state.chat.append(("user", query))
 
-    reply = ""
-
     if is_abusive(query):
         abuse_templates = [
             "Oye {abuse}, tujhe lagta hai tu bada tez hai?",

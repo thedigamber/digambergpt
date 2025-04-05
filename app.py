@@ -1,100 +1,74 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
-import json
+from google.oauth2.service_account import Credentials
+import datetime
+import google.generativeai as genai
 
-# === Load credentials from Streamlit secrets ===
+# Load secrets
+genai_api_key = st.secrets["gemini"]["api_key"]
 creds_dict = st.secrets["gcp_service_account"]
-creds_json = json.loads(json.dumps(creds_dict))
 
-SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-CREDS = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, SCOPE)
-client = gspread.authorize(CREDS)
+# Configure Gemini
+genai.configure(api_key=genai_api_key)
 
-# === Sheet Setup ===
-SHEET_ID = "11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY"
-sheet = client.open_by_key(SHEET_ID).worksheet("digambergpt")
+# Authenticate with Google Sheets
+creds = Credentials.from_service_account_info(creds_dict)
+client = gspread.authorize(creds)
+sheet = client.open("digambergpt").sheet1
 
-# === Utility Functions ===
-def get_all_users():
-    return sheet.get_all_records()
+# Streamlit UI
+st.title("DigamberGPT")
+
+menu = ["Login", "Signup"]
+choice = st.sidebar.selectbox("Menu", menu)
 
 def find_user(email):
-    users = get_all_users()
+    users = sheet.get_all_records()
     for i, user in enumerate(users):
         if user["Email"].lower() == email.lower():
-            return user, i + 2  # row index in sheet
+            return i + 2, user  # +2 because get_all_records starts after headers, and Google Sheets rows start from 1
     return None, None
 
-def signup_user(email, user_type="free"):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sheet.append_row([email, user_type, "0", now])
-    return True
+if choice == "Signup":
+    st.subheader("Create New Account")
+    new_email = st.text_input("Email")
+    user_type = st.selectbox("Select User Type", ["free", "premium"])
+    if st.button("Signup"):
+        row, existing = find_user(new_email)
+        if existing:
+            st.warning("User already exists.")
+        else:
+            now = datetime.datetime.now().isoformat()
+            sheet.append_row([new_email, user_type, 0, now])
+            st.success("Signup successful! Please login.")
 
-def update_last_query_time(row):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sheet.update_cell(row, 4, now)
+elif choice == "Login":
+    st.subheader("Login to your account")
+    email = st.text_input("Email")
+    if st.button("Login"):
+        row, user_data = find_user(email)
+        if user_data:
+            st.session_state["email"] = email
+            st.session_state["user_type"] = user_data["user type"]
+            st.success(f"Welcome {email}!")
+        else:
+            st.error("User not found. Please signup first.")
 
-def upgrade_to_premium(row):
-    sheet.update_cell(row, 2, "premium")
+# After login
+if "email" in st.session_state:
+    st.subheader("Chat with DigamberGPT")
 
-# === Streamlit App ===
-st.set_page_config(page_title="DigamberGPT", layout="centered")
+    prompt = st.text_input("You:", key="input")
+    if st.button("Send"):
+        model = genai.GenerativeModel("gemini-pro")
+        chat = model.start_chat(history=[])
+        response = chat.send_message(prompt)
+        st.markdown(f"**Bot:** {response.text}")
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.email = None
-    st.session_state.user_type = "free"
-
-st.title("Welcome to DigamberGPT")
-
-if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["Login", "Signup"])
-
-    with tab1:
-        login_email = st.text_input("Email", key="login_email")
-        if st.button("Login"):
-            user, row = find_user(login_email)
-            if user:
-                st.session_state.logged_in = True
-                st.session_state.email = login_email
-                st.session_state.user_type = user["user type"]
-                update_last_query_time(row)
-                st.success("Login successful!")
-                st.rerun()
-            else:
-                st.error("User not found. Please sign up.")
-
-    with tab2:
-        signup_email = st.text_input("Email", key="signup_email")
-        if st.button("Sign Up"):
-            user, _ = find_user(signup_email)
-            if user:
-                st.warning("User already exists. Please login.")
-            else:
-                signup_user(signup_email)
-                st.success("Signup successful! Please login.")
-
-else:
-    st.success(f"Welcome, {st.session_state.email}!")
-    st.write(f"**Account Type:** {st.session_state.user_type.capitalize()}")
-
-    if st.session_state.user_type == "premium":
-        st.info("You have access to premium features!")
-    else:
-        st.warning("You are using a free account.")
-        if st.button("Upgrade to Premium"):
-            _, row = find_user(st.session_state.email)
-            if row:
-                upgrade_to_premium(row)
-                st.session_state.user_type = "premium"
-                st.success("Upgraded to Premium!")
-                st.rerun()
-
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.email = None
-        st.session_state.user_type = "free"
-        st.success("Logged out!")
-        st.rerun()
+        # Update query count
+        row, user_data = find_user(st.session_state["email"])
+        if row and user_data:
+            current_queries = int(user_data["queries the hostime"]) + 1
+            now = datetime.datetime.now().isoformat()
+            sheet.update(f"C{row}", current_queries)  # queries the hostime
+            sheet.update(f"D{row}", now)             # last query time

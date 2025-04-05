@@ -1,4 +1,5 @@
 import streamlit as st
+import base64
 from google.generativeai import configure, GenerativeModel
 
 # Load API key
@@ -8,8 +9,26 @@ API_KEY = st.secrets["gemini"]["api_key"]
 configure(api_key=API_KEY)
 model = GenerativeModel("gemini-2.0-flash")
 
-# Page Config
-st.set_page_config(page_title="DigamberGPT - Neon Chatbot", page_icon="🤖", layout="wide")
+# Function to convert image to base64
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+# Load ChatGPT icon
+icon_path = "chatgpt_icon.png"  # Ensure this file is in the same folder as app.py
+icon_base64 = get_base64_image(icon_path)
+
+# Set page config with ChatGPT icon
+st.set_page_config(
+    page_title="DigamberGPT - Neon Chatbot",
+    page_icon=icon_path,  # Using direct file reference
+    layout="wide"
+)
+
+# Inject favicon manually in case the above doesn't work
+st.markdown(f"""
+    <link rel="shortcut icon" href="data:image/png;base64,{icon_base64}" type="image/png">
+""", unsafe_allow_html=True)
 
 # Neon Style + Fix Input Box at Bottom
 st.markdown("""

@@ -54,18 +54,30 @@ st.markdown("""
 # Title
 st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
 
-# Initialize session state
+# Initialize session state variables
 if "user_input" not in st.session_state:
-    st.session_state.user_input = ""
+    st.session_state["user_input"] = ""
+
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []  # Store chat history
+
+# Display chat history
+for msg in st.session_state["messages"]:
+    st.markdown(f'<div class="stChatMessage">{msg}</div>', unsafe_allow_html=True)
 
 # Chat UI
-user_input = st.text_input("Ask me anything!", value=st.session_state.user_input, key="user_input")
+user_input = st.text_input("Ask me anything!", key="user_input")
 
 if st.button("Send"):
-    if st.session_state.user_input.strip():  # Ensure it's not empty
-        response = model.generate_content(st.session_state.user_input)
-        st.markdown(f'<div class="stChatMessage">{response.text}</div>', unsafe_allow_html=True)
+    if user_input.strip():  # Ensure message is not empty
+        response = model.generate_content(user_input)
 
-        # Clear input field after sending the message
-        st.session_state.user_input = ""
-        st.rerun()  # Corrected rerun placement
+        # Save chat history
+        st.session_state["messages"].append(f"**You:** {user_input}")
+        st.session_state["messages"].append(f"**Bot:** {response.text}")
+
+        # Clear input safely without errors
+        st.session_state["user_input"] = ""
+
+        # Force rerun to refresh UI
+        st.experimental_rerun()

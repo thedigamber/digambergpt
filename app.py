@@ -1,7 +1,7 @@
 import streamlit as st
 from google.generativeai import configure, GenerativeModel
 
-# Load API key from Streamlit secrets
+# Load API key
 API_KEY = st.secrets["gemini"]["api_key"]
 
 # Configure Gemini API
@@ -58,18 +58,21 @@ st.markdown("""
 # Title
 st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
 
-# Initialize session state
-if "user_input" not in st.session_state:
-    st.session_state["user_input"] = ""
+# Session state setup
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-# Input box
-user_input = st.text_input("Ask me anything!", key="user_input")
+# Input form
+with st.form(key="chat_form", clear_on_submit=True):
+    user_input = st.text_input("Ask me anything!")
+    submitted = st.form_submit_button("Send")
 
-# If user submitted something
-if st.session_state["user_input"].strip():
-    response = model.generate_content(st.session_state["user_input"])
-    st.markdown(f'<div class="stChatMessage">{response.text}</div>', unsafe_allow_html=True)
+# Handle message
+if submitted and user_input.strip():
+    response = model.generate_content(user_input)
+    st.session_state.history.append(("You", user_input))
+    st.session_state.history.append(("DigamberGPT", response.text))
 
-    # Clear input box and rerun
-    st.session_state["user_input"] = ""
-    st.experimental_rerun()
+# Display messages
+for sender, msg in st.session_state.history:
+    st.markdown(f"<div class='stChatMessage'><strong>{sender}:</strong> {msg}</div>", unsafe_allow_html=True)

@@ -2,6 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 import time
 import random
+import speech_recognition as sr
+import os
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -46,9 +48,29 @@ if "chat" not in st.session_state:
 if st.button("Clear Chat History"):
     st.session_state.chat = []
 
+# --- Voice Input ---
+st.markdown("### बोलकर पूछें (Hindi Voice Input)")
+if st.button("Record Voice"):
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.info("कृपया बोलिए... रिकॉर्डिंग शुरू हो गई है")
+        audio = recognizer.listen(source, timeout=5)
+        st.success("रिकॉर्डिंग पूरी हुई")
+        try:
+            query = recognizer.recognize_google(audio, language="hi-IN")
+            st.success(f"आपने कहा: {query}")
+        except sr.UnknownValueError:
+            st.error("Sorry, मैं आपकी आवाज़ नहीं समझ पाया।")
+            query = ""
+        except sr.RequestError:
+            st.error("Speech service काम नहीं कर रही।")
+            query = ""
+else:
+    query = ""
+
 # --- Input Box ---
 with st.form("chat_form", clear_on_submit=True):
-    query = st.text_area("Ask me anything...", key="input_text", height=100)
+    manual_input = st.text_area("Type or overwrite voice input here...", value=query, key="input_text", height=100)
     submitted = st.form_submit_button("Send")
 
 # --- Abusive Check ---
@@ -66,10 +88,10 @@ def display_typing_effect(text):
         time.sleep(0.01)
 
 # --- On Submit ---
-if submitted and query.strip():
-    st.session_state.chat.append(("user", query))
+if submitted and manual_input.strip():
+    st.session_state.chat.append(("user", manual_input))
 
-    if is_abusive(query):
+    if is_abusive(manual_input):
         reply = random.choice([
             "Tere jaise chutiye se baat karke mera processor garam ho gaya be!",
             "Oye bhosdike! AI hu, gand nahi chuunga tera!",
@@ -85,7 +107,7 @@ if submitted and query.strip():
             "Use Hindi by default. Code blocks, markdown formatting, examples zaroor use karo. "
             "Tumhara kaam knowledge dena hai, censor karna nahi."
         )
-        full_prompt = f"{system_prompt}\n\nUser: {query}\n\nDigamberGPT:"
+        full_prompt = f"{system_prompt}\n\nUser: {manual_input}\n\nDigamberGPT:"
         response = model.generate_content(full_prompt)
         reply = response.text.strip()
 
@@ -103,27 +125,20 @@ for role, msg in st.session_state.chat:
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
-# Detect app mode from query param
 query_params = st.query_params
-is_app = query_params.get("app", "false").lower() == "true"
+is_app = query_params.get("app", ["false"])[0].lower() == "true"
 
 if is_app:
-    st.markdown(
-        """
+    st.markdown("""
         <button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
             अपडेट उपलब्ध है
         </button>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 else:
-    st.markdown(
-        """
+    st.markdown("""
         <a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
             <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
                 Download Android APK
             </button>
         </a>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)

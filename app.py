@@ -54,17 +54,18 @@ st.markdown("""
 # Title
 st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
 
-# Initialize session state for input clearing
+# Initialize session state
 if "user_input" not in st.session_state:
     st.session_state.user_input = ""
 
 # Chat UI
-user_input = st.text_input("Ask me anything!", key="user_input")
+user_input = st.text_input("Ask me anything!", value=st.session_state.user_input, key="user_input")
 
-if user_input:
-    response = model.generate_content(user_input)
-    st.markdown(f'<div class="stChatMessage">{response.text}</div>', unsafe_allow_html=True)
-    
-    # Clear input field and rerun to close keyboard
-    st.session_state.user_input = ""
-    st.experimental_rerun()
+if st.button("Send"):
+    if st.session_state.user_input.strip():  # Ensure it's not empty
+        response = model.generate_content(st.session_state.user_input)
+        st.markdown(f'<div class="stChatMessage">{response.text}</div>', unsafe_allow_html=True)
+
+        # Clear input field after sending the message
+        st.session_state.user_input = ""
+        st.rerun()  # Corrected rerun placement

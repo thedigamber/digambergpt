@@ -26,10 +26,11 @@ st.markdown("""
         text-align: center;
         text-shadow: 2px 2px 10px #ff00ff;
     }
-    .stTextInput, .stTextArea {
+    input[type="text"] {
         background-color: #1a1a1a !important;
         color: #39ff14 !important;
         border: 2px solid #39ff14 !important;
+        padding: 10px;
     }
     .stButton>button {
         background-color: #ff00ff;
@@ -53,9 +54,17 @@ st.markdown("""
 # Title
 st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
 
+# Initialize session state for input clearing
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
+
 # Chat UI
-user_input = st.text_input("Ask me anything!", "")
+user_input = st.text_input("Ask me anything!", key="user_input")
 
 if user_input:
     response = model.generate_content(user_input)
     st.markdown(f'<div class="stChatMessage">{response.text}</div>', unsafe_allow_html=True)
+    
+    # Clear input field and rerun to close keyboard
+    st.session_state.user_input = ""
+    st.experimental_rerun()

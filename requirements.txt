@@ -1,9 +1,5 @@
 streamlit
 google-generativeai
-gTTS
-Pillow
 emoji
 PyPDF2
-python-docx
-SpeechRecognition
-pyaudio
+Pillow

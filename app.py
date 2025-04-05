@@ -7,7 +7,10 @@ from datetime import datetime
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 CREDS = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
 client = gspread.authorize(CREDS)
-sheet = client.open("digambergpt").sheet1  # Sheet name
+
+# Your Sheet ID (from shared link)
+SHEET_ID = "11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY"
+sheet = client.open_by_key(SHEET_ID).worksheet("digambergpt")
 
 # Utility Functions
 def get_all_users():
@@ -17,7 +20,7 @@ def find_user(email):
     users = get_all_users()
     for i, user in enumerate(users):
         if user["Email"].lower() == email.lower():
-            return user, i + 2  # gspread row index (header is row 1)
+            return user, i + 2  # row index
     return None, None
 
 def signup_user(email, user_type="free"):
@@ -75,7 +78,6 @@ else:
 
     if st.session_state.user_type == "premium":
         st.info("You have access to premium features!")
-        # Add premium-only features here
     else:
         st.warning("You are using a free account.")
         if st.button("Upgrade to Premium"):

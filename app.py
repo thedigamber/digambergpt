@@ -1,46 +1,78 @@
 import streamlit as st
 import google.generativeai as genai
+import time
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
 model = genai.GenerativeModel("gemini-2.0-flash")
 
-# --- Streamlit Page Config ---
+# --- Streamlit Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
-st.markdown("<h1 style='text-align: center; color: cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
-st.write("---")
 
-# --- Initialize Chat History ---
+# --- Custom Dark Neon Theme ---
+st.markdown("""
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #00ffff;
+        }
+        .stTextArea textarea {
+            background-color: #1a1a1a !important;
+            color: #00ffff !important;
+        }
+        .stButton>button {
+            background-color: #00ffff;
+            color: #000;
+            font-weight: bold;
+        }
+        .stMarkdown {
+            font-size: 16px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("<h1 style='text-align: center; color: #00ffff;'>DigamberGPT</h1>", unsafe_allow_html=True)
+
+# --- Session State for Chat History ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# --- Display Previous Messages ---
+# --- Clear Chat History ---
+if st.button("Clear Chat History"):
+    st.session_state.chat_history = []
+    st.experimental_rerun()
+
+# --- Display Previous Chat ---
 for chat in st.session_state.chat_history:
     st.markdown(f"**You:** {chat['user']}")
     st.markdown(f"**DigamberGPT:** {chat['bot']}")
 
-# --- Text Input Box at Bottom ---
+# --- Chat Input at Bottom ---
 with st.form("chat_form", clear_on_submit=True):
     query = st.text_area("Ask me anything...", key="input_text", height=100)
     submitted = st.form_submit_button("Send")
 
-# --- Handle Submission ---
+# --- Handle Query ---
 if submitted and query.strip():
-    # Prompt with friendly tone
     system_prompt = (
         "You are DigamberGPT, a helpful, friendly and smart assistant. "
-        "Always respond in a clear and structured way like ChatGPT. "
-        "Use markdown formatting, bullet points, and code blocks if needed."
+        "Always respond like ChatGPT with a clear structure, bullet points, bold text for important parts, "
+        "and code in markdown."
     )
     full_prompt = f"{system_prompt}\n\nUser: {query}\n\nAssistant:"
-
+    
     with st.spinner("Thinking..."):
         response = model.generate_content(full_prompt)
-        answer = response.text
+        response_text = response.text.strip()
+    
+    st.session_state.chat_history.append({"user": query, "bot": response_text})
 
-    # Show response
-    st.markdown(f"**You:** {query}")
-    st.markdown(f"**DigamberGPT:** {answer}")
-
-    # Save in session state
-    st.session_state.chat_history.append({"user": query, "bot": answer})
+    # --- Typing Effect ---
+    st.markdown("**You:** " + query)
+    st.markdown("**DigamberGPT:** ", unsafe_allow_html=True)
+    response_placeholder = st.empty()
+    typed = ""
+    for char in response_text:
+        typed += char
+        response_placeholder.markdown(typed)
+        time.sleep(0.01)

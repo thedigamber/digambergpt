@@ -11,7 +11,7 @@ model = GenerativeModel("gemini-2.0-flash")
 # Page Config
 st.set_page_config(page_title="DigamberGPT - Neon Chatbot", page_icon="🤖", layout="wide")
 
-# Neon Style CSS
+# Neon Style + Fix Input Box at Bottom
 st.markdown("""
     <style>
     body {
@@ -20,6 +20,9 @@ st.markdown("""
     }
     .stApp {
         background-color: #0d0d0d;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
     }
     h1 {
         color: #ff00ff;
@@ -52,6 +55,15 @@ st.markdown("""
         margin-bottom: 10px;
         font-size: 1.1em;
     }
+    /* Fix input box at bottom */
+    [data-testid="stForm"] {
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        z-index: 1000;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -62,9 +74,15 @@ st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# Input form
+# Display chat messages (scrollable)
+chat_container = st.container()
+with chat_container:
+    for sender, msg in st.session_state.history:
+        st.markdown(f"<div class='stChatMessage'><strong>{sender}:</strong> {msg}</div>", unsafe_allow_html=True)
+
+# Input form (fixed at bottom)
 with st.form(key="chat_form", clear_on_submit=True):
-    user_input = st.text_input("Ask me anything!")
+    user_input = st.text_input("Ask me anything!", label_visibility="collapsed")
     submitted = st.form_submit_button("Send")
 
 # Handle message
@@ -72,7 +90,4 @@ if submitted and user_input.strip():
     response = model.generate_content(user_input)
     st.session_state.history.append(("You", user_input))
     st.session_state.history.append(("DigamberGPT", response.text))
-
-# Display messages
-for sender, msg in st.session_state.history:
-    st.markdown(f"<div class='stChatMessage'><strong>{sender}:</strong> {msg}</div>", unsafe_allow_html=True)
+    st.rerun()  # Refresh chat after sending message

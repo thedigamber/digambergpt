@@ -2,17 +2,21 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+import json
 
-# Google Sheets Auth
+# === Load credentials from Streamlit secrets ===
+creds_dict = st.secrets["gcp_service_account"]
+creds_json = json.loads(json.dumps(creds_dict))
+
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-CREDS = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
+CREDS = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, SCOPE)
 client = gspread.authorize(CREDS)
 
-# Your Sheet ID (from shared link)
+# === Sheet Setup ===
 SHEET_ID = "11dW2cYbJ2kCjBE7KTSycsRphl5z9KfXWxoUDf13O5BY"
 sheet = client.open_by_key(SHEET_ID).worksheet("digambergpt")
 
-# Utility Functions
+# === Utility Functions ===
 def get_all_users():
     return sheet.get_all_records()
 
@@ -20,7 +24,7 @@ def find_user(email):
     users = get_all_users()
     for i, user in enumerate(users):
         if user["Email"].lower() == email.lower():
-            return user, i + 2  # row index
+            return user, i + 2  # row index in sheet
     return None, None
 
 def signup_user(email, user_type="free"):
@@ -35,7 +39,7 @@ def update_last_query_time(row):
 def upgrade_to_premium(row):
     sheet.update_cell(row, 2, "premium")
 
-# Streamlit App
+# === Streamlit App ===
 st.set_page_config(page_title="DigamberGPT", layout="centered")
 
 if "logged_in" not in st.session_state:

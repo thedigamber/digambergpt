@@ -55,9 +55,6 @@ st.markdown("""
 st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
 
 # Initialize session state variables
-if "user_input" not in st.session_state:
-    st.session_state["user_input"] = ""
-
 if "messages" not in st.session_state:
     st.session_state["messages"] = []  # Store chat history
 
@@ -65,19 +62,18 @@ if "messages" not in st.session_state:
 for msg in st.session_state["messages"]:
     st.markdown(f'<div class="stChatMessage">{msg}</div>', unsafe_allow_html=True)
 
-# Chat UI
+# Input field
 user_input = st.text_input("Ask me anything!", key="user_input")
 
+# Button logic
 if st.button("Send"):
-    if user_input.strip():  # Ensure message is not empty
-        response = model.generate_content(user_input)
+    if st.session_state.user_input.strip():  # Ensure message is not empty
+        response = model.generate_content(st.session_state.user_input)
 
         # Save chat history
-        st.session_state["messages"].append(f"**You:** {user_input}")
+        st.session_state["messages"].append(f"**You:** {st.session_state.user_input}")
         st.session_state["messages"].append(f"**Bot:** {response.text}")
 
-        # Clear input safely without errors
+        # Clear input using Streamlit's session state workaround
         st.session_state["user_input"] = ""
-
-        # Force rerun to refresh UI
-        st.experimental_rerun()
+        st.experimental_rerun()  # Force UI refresh

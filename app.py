@@ -98,15 +98,19 @@ for role, msg in st.session_state.chat:
         st.markdown(f"**DigamberGPT:**")
         display_typing_effect(msg)
 
-# --- APK Download Placeholder ---
+# --- APK Download Section ---
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
+apk_link = "https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr"
+
 st.markdown(
-    """
-    <button disabled style='background-color:gray;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
-        Android App (Coming Soon)
-    </button>
+    f"""
+    <a href="{apk_link}" target="_blank">
+        <button style='background-color:#00ffcc;color:black;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
+            Download DigamberGPT APK
+        </button>
+    </a>
     """,
     unsafe_allow_html=True
 )

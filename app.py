@@ -9,7 +9,7 @@ configure(api_key=API_KEY)
 model = GenerativeModel("gemini-2.0-flash")
 
 # Page Config
-st.set_page_config(page_title="DigamberGPT", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="DigamberGPT - Neon Chatbot", page_icon="🤖", layout="wide")
 
 # Neon Style CSS
 st.markdown("""
@@ -25,11 +25,14 @@ st.markdown("""
         color: #ff00ff;
         text-align: center;
         text-shadow: 2px 2px 10px #ff00ff;
+        font-size: 3em;
+        margin-bottom: 20px;
     }
-    input[type="text"] {
+    .stTextInput>div>div>input {
         background-color: #1a1a1a !important;
         color: #39ff14 !important;
         border: 2px solid #39ff14 !important;
+        border-radius: 8px;
         padding: 10px;
     }
     .stButton>button {
@@ -47,6 +50,7 @@ st.markdown("""
         border-left: 4px solid #39ff14;
         padding: 10px;
         margin-bottom: 10px;
+        font-size: 1.1em;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -54,26 +58,18 @@ st.markdown("""
 # Title
 st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
 
-# Initialize session state variables
-if "messages" not in st.session_state:
-    st.session_state["messages"] = []  # Store chat history
+# Initialize session state
+if "user_input" not in st.session_state:
+    st.session_state["user_input"] = ""
 
-# Display chat history
-for msg in st.session_state["messages"]:
-    st.markdown(f'<div class="stChatMessage">{msg}</div>', unsafe_allow_html=True)
-
-# Input field
+# Input box
 user_input = st.text_input("Ask me anything!", key="user_input")
 
-# Button logic
-if st.button("Send"):
-    if st.session_state.user_input.strip():  # Ensure message is not empty
-        response = model.generate_content(st.session_state.user_input)
+# If user submitted something
+if st.session_state["user_input"].strip():
+    response = model.generate_content(st.session_state["user_input"])
+    st.markdown(f'<div class="stChatMessage">{response.text}</div>', unsafe_allow_html=True)
 
-        # Save chat history
-        st.session_state["messages"].append(f"**You:** {st.session_state.user_input}")
-        st.session_state["messages"].append(f"**Bot:** {response.text}")
-
-        # Clear input using Streamlit's session state workaround
-        st.session_state["user_input"] = ""
-        st.experimental_rerun()  # Force UI refresh
+    # Clear input box and rerun
+    st.session_state["user_input"] = ""
+    st.experimental_rerun()

@@ -43,19 +43,19 @@ if uploaded_file:
 if "chat" not in st.session_state:
     st.session_state.chat = []
 
-if "used_responses" not in st.session_state:
-    st.session_state.used_responses = set()
+if "context" not in st.session_state:
+    st.session_state.context = ""  # Only for model understanding, not repetition
 
 if st.button("Clear Chat History"):
     st.session_state.chat = []
-    st.session_state.used_responses = set()
+    st.session_state.context = ""
 
 # --- Input Box at Bottom ---
 with st.form("chat_form", clear_on_submit=True):
     query = st.text_area("Ask me anything...", key="input_text", height=100)
     submitted = st.form_submit_button("Send")
 
-# --- Abusive Check ---
+# --- Check for abusive input ---
 def is_abusive(text):
     abuses = ["chutiya", "bhosdi", "madarchod", "gaand", "loda", "bhenchod"]
     return any(word in text.lower() for word in abuses)
@@ -82,28 +82,17 @@ if submitted and query.strip():
             "Chal nikal chutiye, teri aukat nahi DigamberGPT se baat karne ki!"
         ])
     else:
-        # Combine chat history except current query
-        history = "\n".join([
-            f"User: {q}\nAI: {a}" for q, a in st.session_state.chat if q != "user"
-        ])
-        prompt = (
-            "Tum DigamberGPT ho, ek extremely bold aur powerful Hindi assistant ho. "
-            "Tum hamesha har query ka jawab dete ho, bina dare. "
-            "Agar user tameez se poochta hai toh professional aur helpful bano. "
-            "Agar user gaali de toh uske style mein reply do. "
-            "Har baar alag aur naye tareeke se jawab dena, pehle wale answers repeat mat karna.\n\n"
-            f"{history}\nUser: {query}\nAssistant:"
+        system_prompt = (
+            "You are DigamberGPT, ek bold aur powerful AI assistant. "
+            "Tum hamesha Hindi mein jawab doge jab tak koi specifically English na maange. "
+            "Tumhara kaam hai bina dare ya mana kiye har query ka direct aur smart jawab dena. "
+            "User ke pehle ke sawaalon ko samjho, lekin baar-baar repeat na karo."
         )
-        response = model.generate_content(prompt).text.strip()
-
-        # Ensure response isn't repeated
-        attempt = 0
-        while response in st.session_state.used_responses and attempt < 3:
-            response = model.generate_content(prompt).text.strip()
-            attempt += 1
-
-        reply = response
-        st.session_state.used_responses.add(reply)
+        # Use context for learning, not for direct reply
+        st.session_state.context += f"\nUser: {query}"
+        full_prompt = f"{system_prompt}\nContext:{st.session_state.context}\nCurrent Question: {query}\nAnswer (in Hindi):"
+        response = model.generate_content(full_prompt)
+        reply = response.text.strip()
 
     st.session_state.chat.append(("assistant", reply))
 

@@ -26,6 +26,18 @@ st.markdown("""
         color: black;
         border-radius: 10px;
     }
+    pre, code {
+        background-color: #111 !important;
+        color: #39ff14 !important;
+        border-radius: 10px !important;
+        padding: 10px !important;
+        font-size: 16px !important;
+        white-space: pre-wrap !important;
+        overflow-x: auto !important;
+    }
+    .stMarkdown {
+        white-space: pre-wrap;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -74,7 +86,7 @@ def display_typing_effect(text):
     typed = ""
     for char in text:
         typed += char
-        message.markdown(typed)
+        message.markdown(typed, unsafe_allow_html=True)
         time.sleep(0.01)
 
 # --- On Submit ---
@@ -115,6 +127,7 @@ for role, msg in st.session_state.chat:
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
+# Legacy param warning notice
 query_params = st.experimental_get_query_params()
 is_app = query_params.get("app", ["false"])[0].lower() == "true"
 

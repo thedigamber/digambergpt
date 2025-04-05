@@ -2,8 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 import time
 import random
-import speech_recognition as sr
-import os
+from PyPDF2 import PdfReader
+import emoji
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -39,7 +39,17 @@ with col2:
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
 if uploaded_file:
-    st.success(f"File '{uploaded_file.name}' uploaded successfully!")
+    if uploaded_file.type == "application/pdf":
+        pdf_reader = PdfReader(uploaded_file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+        st.success("PDF content loaded!")
+        st.text_area("PDF Content", value=text, height=150)
+    elif uploaded_file.type == "text/plain":
+        text = uploaded_file.read().decode("utf-8")
+        st.success("Text file content loaded!")
+        st.text_area("Text File Content", value=text, height=150)
 
 # --- Chat History ---
 if "chat" not in st.session_state:
@@ -48,29 +58,9 @@ if "chat" not in st.session_state:
 if st.button("Clear Chat History"):
     st.session_state.chat = []
 
-# --- Voice Input ---
-st.markdown("### बोलकर पूछें (Hindi Voice Input)")
-if st.button("Record Voice"):
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("कृपया बोलिए... रिकॉर्डिंग शुरू हो गई है")
-        audio = recognizer.listen(source, timeout=5)
-        st.success("रिकॉर्डिंग पूरी हुई")
-        try:
-            query = recognizer.recognize_google(audio, language="hi-IN")
-            st.success(f"आपने कहा: {query}")
-        except sr.UnknownValueError:
-            st.error("Sorry, मैं आपकी आवाज़ नहीं समझ पाया।")
-            query = ""
-        except sr.RequestError:
-            st.error("Speech service काम नहीं कर रही।")
-            query = ""
-else:
-    query = ""
-
 # --- Input Box ---
 with st.form("chat_form", clear_on_submit=True):
-    manual_input = st.text_area("Type or overwrite voice input here...", value=query, key="input_text", height=100)
+    query = st.text_area("Ask me anything...", key="input_text", height=100)
     submitted = st.form_submit_button("Send")
 
 # --- Abusive Check ---
@@ -88,10 +78,10 @@ def display_typing_effect(text):
         time.sleep(0.01)
 
 # --- On Submit ---
-if submitted and manual_input.strip():
-    st.session_state.chat.append(("user", manual_input))
+if submitted and query.strip():
+    st.session_state.chat.append(("user", query))
 
-    if is_abusive(manual_input):
+    if is_abusive(query):
         reply = random.choice([
             "Tere jaise chutiye se baat karke mera processor garam ho gaya be!",
             "Oye bhosdike! AI hu, gand nahi chuunga tera!",
@@ -107,7 +97,7 @@ if submitted and manual_input.strip():
             "Use Hindi by default. Code blocks, markdown formatting, examples zaroor use karo. "
             "Tumhara kaam knowledge dena hai, censor karna nahi."
         )
-        full_prompt = f"{system_prompt}\n\nUser: {manual_input}\n\nDigamberGPT:"
+        full_prompt = f"{system_prompt}\n\nUser: {query}\n\nDigamberGPT:"
         response = model.generate_content(full_prompt)
         reply = response.text.strip()
 
@@ -125,20 +115,26 @@ for role, msg in st.session_state.chat:
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
-query_params = st.query_params
+query_params = st.experimental_get_query_params()
 is_app = query_params.get("app", ["false"])[0].lower() == "true"
 
 if is_app:
-    st.markdown("""
+    st.markdown(
+        """
         <button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
             अपडेट उपलब्ध है
         </button>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True
+    )
 else:
-    st.markdown("""
+    st.markdown(
+        """
         <a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
             <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
                 Download Android APK
             </button>
         </a>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True
+    )

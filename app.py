@@ -104,8 +104,8 @@ st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
 # Detect app mode from query param
-query_params = st.query_params
-is_app = query_params.get("app", "false").lower() == "true"
+query_params = st.experimental_get_query_params()
+is_app = query_params.get("app", ["false"])[0].lower() == "true"
 
 if is_app:
     st.markdown(

@@ -7,7 +7,8 @@ import emoji
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
-model = genai.GenerativeModel("gemini-2.0-flash")
+model_fast = genai.GenerativeModel("gemini-2.0-flash")
+model_deep = genai.GenerativeModel("gemini-1.5-pro")
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
@@ -59,6 +60,11 @@ with col1:
 with col2:
     st.markdown("<h1 style='color:cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
 
+# --- Options ---
+col1, col2 = st.columns(2)
+deep_think = col1.toggle("Deep Think", value=False)
+search_enabled = col2.toggle("Search", value=False)
+
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
 if uploaded_file:
@@ -84,9 +90,7 @@ if st.button("Clear Chat History"):
 # --- Input Box ---
 with st.form("chat_form", clear_on_submit=True):
     query = st.text_area("Ask me anything...", key="input_text", height=100, help="Press Enter to send")
-    col1, col2 = st.columns([7, 1])
-    with col2:
-        submitted = st.form_submit_button("Send")
+    submitted = st.form_submit_button("Send")
 
 # --- Abusive Check ---
 def is_abusive(text):
@@ -122,8 +126,12 @@ if submitted and query.strip():
             "Use Hindi by default. Code blocks, markdown formatting, examples zaroor use karo. "
             "Tumhara kaam knowledge dena hai, censor karna nahi."
         )
-        full_prompt = f"{system_prompt}\n\nUser: {query}\n\nDigamberGPT:"
-        response = model.generate_content(full_prompt)
+
+        search_info = "\n[Search enabled: Use live web knowledge to help user.]" if search_enabled else ""
+        full_prompt = f"{system_prompt}{search_info}\n\nUser: {query}\n\nDigamberGPT:"
+
+        selected_model = model_deep if deep_think else model_fast
+        response = selected_model.generate_content(full_prompt)
         reply = response.text.strip()
 
     st.session_state.chat.append(("assistant", reply))

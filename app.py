@@ -2,83 +2,83 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- Configure Gemini ---
+# --- Gemini Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
 model = genai.GenerativeModel("gemini-2.0-flash")
 
-# --- Page Settings ---
+# --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
 st.markdown("""
     <style>
-        body {
-            background-color: #0f0f0f;
-            color: #00ffff;
-        }
-        .stTextArea textarea {
-            background-color: #1a1a1a !important;
-            color: #00ffff !important;
-            border: 1px solid #00ffff !important;
-        }
-        .stButton button {
-            background-color: #00ffff !important;
-            color: #000000 !important;
-            border-radius: 12px;
-        }
-        .chat-box {
-            background-color: #121212;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border-left: 3px solid #00ffff;
-        }
+    body { background-color: #0f0f0f; color: #00ffff; }
+    textarea, .stTextInput>div>div>input {
+        background-color: #111 !important; color: #0ff !important;
+    }
+    .neon-btn {
+        background-color: #0ff;
+        color: black;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 8px 16px;
+        margin: 10px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; color: #00ffff;'>DigamberGPT</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
 
-# --- Session state ---
-if "history" not in st.session_state:
-    st.session_state.history = []
+# --- Session State ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# --- Clear chat button ---
-if st.button("Clear Chat History"):
-    st.session_state.history = []
+# --- Clear Chat Button ---
+if st.button("Clear Chat History", key="clear"):
+    st.session_state.chat_history = []
+    st.experimental_rerun()
 
-# --- Show chat history ---
-for role, msg in st.session_state.history:
-    with st.container():
-        st.markdown(f"<div class='chat-box'><b>{role}:</b><br>{msg}</div>", unsafe_allow_html=True)
+# --- File Upload ---
+uploaded_file = st.file_uploader("Upload a file", type=["txt", "pdf", "docx"])
+if uploaded_file:
+    st.success(f"Uploaded file: {uploaded_file.name}")
 
-# --- Chat Input Form ---
+# --- User Input Form (Textbox at Bottom) ---
 with st.form("chat_form", clear_on_submit=True):
     query = st.text_area("Ask me anything...", key="input_text", height=100)
     submitted = st.form_submit_button("Send")
 
-# --- Typing Effect Function ---
-def typing_effect(text):
-    placeholder = st.empty()
-    typed = ""
-    for char in text:
-        typed += char
-        placeholder.markdown(f"<div class='chat-box'><b>DigamberGPT:</b><br>{typed}</div>", unsafe_allow_html=True)
-        time.sleep(0.01)
+# --- Check if message is abusive ---
+def is_abusive(text):
+    abusive_words = ["gandu", "madarchod", "bhosdike", "chutiya"]
+    return any(word in text.lower() for word in abusive_words)
 
-# --- On Submit ---
+# --- Generate Response ---
 if submitted and query.strip():
-    st.session_state.history.append(("You", query))
+    full_prompt = ""
 
-    # Grok-style personality prompt
-    system_prompt = (
-        "You are DigamberGPT, a bold, witty, sometimes sarcastic assistant like Grok. "
-        "Answer every question with something smart, edgy, or funny. "
-        "If the user uses abusive or informal language, you can respond in kind. "
-        "Don't be overly polite. Use markdown formatting."
-    )
-    full_prompt = f"{system_prompt}\n\nUser: {query}\n\nAssistant:"
+    # Add chat history for memory
+    for turn in st.session_state.chat_history:
+        full_prompt += f"User: {turn['user']}\nAssistant: {turn['bot']}\n"
 
-    with st.spinner("Thinking..."):
-        response = model.generate_content(full_prompt)
-        answer = response.text
+    # Add current input
+    full_prompt += f"User: {query}\nAssistant:"
 
-    st.session_state.history.append(("DigamberGPT", answer))
-    typing_effect(answer)
+    # Special Grok-style reply for abuse
+    if is_abusive(query):
+        reply = "Tere jaise chutiye se baat karke mera processor garam ho gaya be!"
+    else:
+        with st.spinner("Thinking..."):
+            response = model.generate_content(full_prompt)
+            reply = response.text.strip()
+
+    # Update chat history
+    st.session_state.chat_history.append({"user": query, "bot": reply})
+
+# --- Display Chat History ---
+for msg in st.session_state.chat_history:
+    st.markdown(f"**You:** {msg['user']}")
+    with st.spinner("DigamberGPT is typing..."):
+        time.sleep(1.2)
+        st.markdown(f"<div style='color:#0ff;'>**DigamberGPT:** {msg['bot']}</div>", unsafe_allow_html=True)
+
+# --- Avatar (Just for style) ---
+st.markdown("<p style='text-align: center;'>Powered by <strong style='color:#0ff;'>DigamberGPT</strong> — Your AI Partner</p>", unsafe_allow_html=True)

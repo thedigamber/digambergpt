@@ -26,17 +26,14 @@ st.markdown("""
         color: black;
         border-radius: 10px;
     }
-    pre, code {
-        background-color: #111 !important;
-        color: #39ff14 !important;
-        border-radius: 10px !important;
-        padding: 10px !important;
-        font-size: 16px !important;
-        white-space: pre-wrap !important;
-        overflow-x: auto !important;
-    }
-    .stMarkdown {
+    .chat-bubble {
+        background-color: #1a1a1a;
+        border-radius: 10px;
+        padding: 10px;
+        margin: 5px 0;
+        color: white;
         white-space: pre-wrap;
+        word-wrap: break-word;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -86,8 +83,8 @@ def display_typing_effect(text):
     typed = ""
     for char in text:
         typed += char
-        message.markdown(typed, unsafe_allow_html=True)
-        time.sleep(0.01)
+        message.markdown(f"<div class='chat-bubble'>{typed}</div>", unsafe_allow_html=True)
+        time.sleep(0.005)
 
 # --- On Submit ---
 if submitted and query.strip():
@@ -118,17 +115,16 @@ if submitted and query.strip():
 # --- Display Chat ---
 for role, msg in st.session_state.chat:
     if role == "user":
-        st.markdown(f"**You:** {msg}")
+        st.markdown(f"<div class='chat-bubble'><strong>You:</strong> {msg}</div>", unsafe_allow_html=True)
     else:
-        st.markdown(f"**DigamberGPT:**")
+        st.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong></div>", unsafe_allow_html=True)
         display_typing_effect(msg)
 
 # --- APK Section ---
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
-# Legacy param warning notice
-query_params = st.experimental_get_query_params()
+query_params = st.query_params
 is_app = query_params.get("app", ["false"])[0].lower() == "true"
 
 if is_app:

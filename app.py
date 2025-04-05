@@ -46,12 +46,12 @@ if "chat" not in st.session_state:
 if st.button("Clear Chat History"):
     st.session_state.chat = []
 
-# --- Input Box at Bottom ---
+# --- Input Box ---
 with st.form("chat_form", clear_on_submit=True):
     query = st.text_area("Ask me anything...", key="input_text", height=100)
     submitted = st.form_submit_button("Send")
 
-# --- Check for abusive input ---
+# --- Abusive Check ---
 def is_abusive(text):
     abuses = ["chutiya", "bhosdi", "madarchod", "gaand", "loda", "bhenchod"]
     return any(word in text.lower() for word in abuses)
@@ -99,13 +99,15 @@ for role, msg in st.session_state.chat:
         st.markdown(f"**DigamberGPT:**")
         display_typing_effect(msg)
 
-# --- APK Download / Update Based on Platform ---
+# --- APK Section ---
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
-user_agent = st.request.headers.get("user-agent", "").lower()
-if "android" in user_agent and "wv" in user_agent:
-    # If running inside WebView (app)
+# Detect app mode from query param
+query_params = st.query_params
+is_app = query_params.get("app", "false").lower() == "true"
+
+if is_app:
     st.markdown(
         """
         <button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
@@ -115,7 +117,6 @@ if "android" in user_agent and "wv" in user_agent:
         unsafe_allow_html=True
     )
 else:
-    # Web browser (show download link)
     st.markdown(
         """
         <a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">

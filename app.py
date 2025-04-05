@@ -1,74 +1,62 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-import datetime
 import google.generativeai as genai
+from datetime import datetime
+import pytz
+import json
 
-# Load secrets
-genai_api_key = st.secrets["gemini"]["api_key"]
-creds_dict = st.secrets["gcp_service_account"]
-
-# Configure Gemini
-genai.configure(api_key=genai_api_key)
-
-# Authenticate with Google Sheets
-creds = Credentials.from_service_account_info(creds_dict)
+# --- Load credentials from JSON file ---
+with open("deductive-team-455314-b0-330466287823.json") as f:
+    creds_dict = json.load(f)
+creds = Credentials.from_service_account_info(creds_dict, scopes=[
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+])
 client = gspread.authorize(creds)
 sheet = client.open("digambergpt").sheet1
 
-# Streamlit UI
-st.title("DigamberGPT")
+# --- Gemini API Setup ---
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel("gemini-2.0-flash")  # Use "gemini-2.0-flash" if available in your setup
 
-menu = ["Login", "Signup"]
-choice = st.sidebar.selectbox("Menu", menu)
+# --- Streamlit UI ---
+st.set_page_config(page_title="DigamberGPT", layout="centered")
+st.markdown("<h1 style='text-align: center; color: cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
 
-def find_user(email):
+# --- Inputs ---
+email = st.text_input("Enter your email")
+password = st.text_input("Enter password", type="password")
+query = st.text_area("Ask your question")
+submit = st.button("Send")
+
+# --- Authenticate user ---
+def is_valid_user(email, password):
     users = sheet.get_all_records()
-    for i, user in enumerate(users):
-        if user["Email"].lower() == email.lower():
-            return i + 2, user  # +2 because get_all_records starts after headers, and Google Sheets rows start from 1
-    return None, None
+    for i, row in enumerate(users, start=2):
+        if row["email"] == email and row["user_type"] == password:
+            return i
+    return None
 
-if choice == "Signup":
-    st.subheader("Create New Account")
-    new_email = st.text_input("Email")
-    user_type = st.selectbox("Select User Type", ["free", "premium"])
-    if st.button("Signup"):
-        row, existing = find_user(new_email)
-        if existing:
-            st.warning("User already exists.")
-        else:
-            now = datetime.datetime.now().isoformat()
-            sheet.append_row([new_email, user_type, 0, now])
-            st.success("Signup successful! Please login.")
+# --- Handle AI query ---
+def handle_query(q):
+    response = model.generate_content(q)
+    return response.text
 
-elif choice == "Login":
-    st.subheader("Login to your account")
-    email = st.text_input("Email")
-    if st.button("Login"):
-        row, user_data = find_user(email)
-        if user_data:
-            st.session_state["email"] = email
-            st.session_state["user_type"] = user_data["user type"]
-            st.success(f"Welcome {email}!")
-        else:
-            st.error("User not found. Please signup first.")
+# --- Process on click ---
+if submit and email and password and query:
+    row = is_valid_user(email, password)
+    if row:
+        with st.spinner("Thinking..."):
+            reply = handle_query(query)
+        st.success("Response:")
+        st.write(reply)
 
-# After login
-if "email" in st.session_state:
-    st.subheader("Chat with DigamberGPT")
+        now = datetime.now(pytz.timezone("Asia/Kolkata"))
+        queries = sheet.cell(row, 3).value or "0"
+        sheet.update_cell(row, 3, str(int(queries) + 1))
+        sheet.update_cell(row, 4, now.strftime("%Y-%m-%d %H:%M:%S"))
 
-    prompt = st.text_input("You:", key="input")
-    if st.button("Send"):
-        model = genai.GenerativeModel("gemini-pro")
-        chat = model.start_chat(history=[])
-        response = chat.send_message(prompt)
-        st.markdown(f"**Bot:** {response.text}")
-
-        # Update query count
-        row, user_data = find_user(st.session_state["email"])
-        if row and user_data:
-            current_queries = int(user_data["queries the hostime"]) + 1
-            now = datetime.datetime.now().isoformat()
-            sheet.update(f"C{row}", current_queries)  # queries the hostime
-            sheet.update(f"D{row}", now)             # last query time
+        st.experimental_rerun()
+    else:
+        st.error("Invalid email or password.")

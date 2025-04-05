@@ -98,19 +98,38 @@ for role, msg in st.session_state.chat:
         st.markdown(f"**DigamberGPT:**")
         display_typing_effect(msg)
 
-# --- APK Download Section ---
+# --- APK Download or Update Message ---
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 
-apk_link = "https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr"
+from streamlit.web.server.websocket_headers import _get_websocket_headers
 
-st.markdown(
-    f"""
-    <a href="{apk_link}" target="_blank">
-        <button style='background-color:#00ffcc;color:black;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
-            Download DigamberGPT APK
-        </button>
-    </a>
-    """,
-    unsafe_allow_html=True
-)
+def is_android_app():
+    try:
+        headers = _get_websocket_headers()
+        user_agent = headers.get("User-Agent", "").lower()
+        return "android" in user_agent or "wv" in user_agent  # WebView indicator
+    except:
+        return False
+
+if is_android_app():
+    st.markdown(
+        """
+        <div style='color:orange; font-size:18px;'>
+            App Updated – You're using the latest version!
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    apk_link = "https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr"
+    st.markdown(
+        f"""
+        <a href="{apk_link}" target="_blank">
+            <button style='background-color:#00ffcc;color:black;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>
+                Download DigamberGPT APK
+            </button>
+        </a>
+        """,
+        unsafe_allow_html=True
+    )

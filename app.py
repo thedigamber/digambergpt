@@ -1,97 +1,94 @@
 import streamlit as st
-from google.generativeai import configure, GenerativeModel
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
 
-# Load API key
-API_KEY = st.secrets["gemini"]["api_key"]
+# Google Sheets Auth
+SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+CREDS = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", SCOPE)
+client = gspread.authorize(CREDS)
+sheet = client.open("digambergpt").sheet1  # Sheet name
 
-# Configure Gemini API
-configure(api_key=API_KEY)
-model = GenerativeModel("gemini-2.0-flash")
+# Utility Functions
+def get_all_users():
+    return sheet.get_all_records()
 
-# Set page config with ChatGPT-style icon
-st.set_page_config(
-    page_title="DigamberGPT - Neon Chatbot",
-    page_icon="🌀",  # Similar to ChatGPT icon (or replace with an emoji)
-    layout="wide"
-)
+def find_user(email):
+    users = get_all_users()
+    for i, user in enumerate(users):
+        if user["Email"].lower() == email.lower():
+            return user, i + 2  # gspread row index (header is row 1)
+    return None, None
 
-# Neon Style + Fix Input Box at Bottom
-st.markdown("""
-    <style>
-    body {
-        background-color: #0d0d0d;
-        color: #39ff14;
-    }
-    .stApp {
-        background-color: #0d0d0d;
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-    }
-    h1 {
-        color: #ff00ff;
-        text-align: center;
-        text-shadow: 2px 2px 10px #ff00ff;
-        font-size: 3em;
-        margin-bottom: 20px;
-    }
-    .stTextInput>div>div>input {
-        background-color: #1a1a1a !important;
-        color: #39ff14 !important;
-        border: 2px solid #39ff14 !important;
-        border-radius: 8px;
-        padding: 10px;
-    }
-    .stButton>button {
-        background-color: #ff00ff;
-        color: white;
-        border-radius: 8px;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #39ff14;
-        color: black;
-    }
-    .stChatMessage {
-        background-color: #1a1a1a;
-        border-left: 4px solid #39ff14;
-        padding: 10px;
-        margin-bottom: 10px;
-        font-size: 1.1em;
-    }
-    /* Fix input box at bottom */
-    [data-testid="stForm"] {
-        position: fixed;
-        bottom: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 80%;
-        z-index: 1000;
-    }
-    </style>
-""", unsafe_allow_html=True)
+def signup_user(email, user_type="free"):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sheet.append_row([email, user_type, "0", now])
+    return True
 
-# Title
-st.markdown("<h1>🚀 DigamberGPT 🤖</h1>", unsafe_allow_html=True)
+def update_last_query_time(row):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sheet.update_cell(row, 4, now)
 
-# Session state setup
-if "history" not in st.session_state:
-    st.session_state.history = []
+def upgrade_to_premium(row):
+    sheet.update_cell(row, 2, "premium")
 
-# Display chat messages (scrollable)
-chat_container = st.container()
-with chat_container:
-    for sender, msg in st.session_state.history:
-        st.markdown(f"<div class='stChatMessage'><strong>{sender}:</strong> {msg}</div>", unsafe_allow_html=True)
+# Streamlit App
+st.set_page_config(page_title="DigamberGPT", layout="centered")
 
-# Input form (fixed at bottom)
-with st.form(key="chat_form", clear_on_submit=True):
-    user_input = st.text_input("Ask me anything!", label_visibility="collapsed")
-    submitted = st.form_submit_button("Send")
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.email = None
+    st.session_state.user_type = "free"
 
-# Handle message
-if submitted and user_input.strip():
-    response = model.generate_content(user_input)
-    st.session_state.history.append(("You", user_input))
-    st.session_state.history.append(("DigamberGPT", response.text))
-    st.rerun()  # Refresh chat after sending message
+st.title("Welcome to DigamberGPT")
+
+if not st.session_state.logged_in:
+    tab1, tab2 = st.tabs(["Login", "Signup"])
+
+    with tab1:
+        login_email = st.text_input("Email", key="login_email")
+        if st.button("Login"):
+            user, row = find_user(login_email)
+            if user:
+                st.session_state.logged_in = True
+                st.session_state.email = login_email
+                st.session_state.user_type = user["user type"]
+                update_last_query_time(row)
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error("User not found. Please sign up.")
+
+    with tab2:
+        signup_email = st.text_input("Email", key="signup_email")
+        if st.button("Sign Up"):
+            user, _ = find_user(signup_email)
+            if user:
+                st.warning("User already exists. Please login.")
+            else:
+                signup_user(signup_email)
+                st.success("Signup successful! Please login.")
+
+else:
+    st.success(f"Welcome, {st.session_state.email}!")
+    st.write(f"**Account Type:** {st.session_state.user_type.capitalize()}")
+
+    if st.session_state.user_type == "premium":
+        st.info("You have access to premium features!")
+        # Add premium-only features here
+    else:
+        st.warning("You are using a free account.")
+        if st.button("Upgrade to Premium"):
+            _, row = find_user(st.session_state.email)
+            if row:
+                upgrade_to_premium(row)
+                st.session_state.user_type = "premium"
+                st.success("Upgraded to Premium!")
+                st.rerun()
+
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.email = None
+        st.session_state.user_type = "free"
+        st.success("Logged out!")
+        st.rerun()

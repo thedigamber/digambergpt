@@ -62,8 +62,21 @@ with tab1:
     # ... (keep all your existing chat functionality here)
 
 with tab2:
-    # [Your existing SFW image generation tab code]
-    # ... (keep your Stability AI image generation here)
+    # --- Image Generator Tab ---
+    st.subheader("Image Generator (Stability AI)")
+    img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
+
+    if st.button("Image Banao", key="generate_img_btn"):
+        with st.spinner("Image ban rahi hai..."):
+            img = generate_image_stability(img_prompt)
+            if img:
+                st.image(img, caption="Tumhari Image")
+                # Download link
+                buffered = io.BytesIO()
+                img.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode()
+                href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
+                st.markdown(href, unsafe_allow_html=True)
 
 with tab3:
     st.markdown("## **NSFW Image Generator (18+ Only)**")

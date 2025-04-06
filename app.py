@@ -91,14 +91,14 @@ with st.sidebar:
         st.session_state.chat_history[new_chat_name] = []
         st.session_state.selected_history = new_chat_name
         st.session_state.new_chat_created = True
-        st.experimental_rerun()
+        st.rerun()
 
     # Display existing chats
     for key in [k for k in st.session_state.chat_history.keys() if k != "New Chat"]:
         if st.button(key, key=key):
             st.session_state.selected_history = key
             st.session_state.new_chat_created = False
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -110,7 +110,7 @@ with st.sidebar:
             if new_title and new_title != selected:
                 st.session_state.chat_history[new_title] = st.session_state.chat_history.pop(selected)
                 st.session_state.selected_history = new_title
-                st.experimental_rerun()
+                st.rerun()
 
         export_text = ""
         for role, msg in st.session_state.chat_history[selected]:
@@ -123,7 +123,7 @@ with st.sidebar:
             del st.session_state.chat_history[selected]
             st.session_state.selected_history = "New Chat"
             st.session_state.new_chat_created = True
-            st.experimental_rerun()
+            st.rerun()
 
 # --- Options ---
 col1, col2 = st.columns(2)

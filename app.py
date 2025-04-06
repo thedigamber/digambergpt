@@ -7,7 +7,6 @@ from gtts import gTTS
 import os
 import uuid
 import emoji
-import replicate
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from stability_sdk import client
 import io
@@ -18,99 +17,6 @@ import base64
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
 model_fast = genai.GenerativeModel("gemini-2.0-flash")
 model_deep = genai.GenerativeModel("gemini-1.5-pro")
-
-# --- NSFW Image Generation Function ---
-def generate_nsfw_image(prompt):
-    try:
-        client = replicate.Client(api_token=st.secrets["REPLICATE_API_TOKEN"])
-        output = client.run(
-            "lucataco/nsfw-sd:fd1ce540e3e2c26ad55f850ed9b3d4d0b94e4e3a81b1a15c991f79c8306e672e",
-            input={"prompt": prompt}
-        )
-        return output[0]  # Direct URL of generated image
-    except Exception as e:
-        st.error(f"Image generation failed: {e}")
-        return None
-
-# --- Page Config ---
-st.set_page_config(page_title="DigamberGPT", layout="centered", page_icon="🔥")
-st.markdown("""
-    <style>
-    body { background-color: #0f0f0f; color: #39ff14; }
-    .stTextArea textarea { background-color: #1a1a1a; color: white; }
-    .stButton button { background-color: #39ff14; color: black; border-radius: 10px; }
-    .chat-bubble {
-        background-color: #1a1a1a; border-radius: 10px; padding: 10px;
-        margin: 5px 0; color: white; white-space: pre-wrap; word-wrap: break-word;
-    }
-    .nsfw-section { 
-        border: 2px solid #ff0000;
-        padding: 15px;
-        border-radius: 10px;
-        margin-top: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- Title & Avatar ---
-col1, col2 = st.columns([1, 8])
-with col1:
-    st.image("https://i.imgur.com/3v5p4UQ.png", width=50)
-with col2:
-    st.markdown("<h1 style='color:cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
-
-# --- Chat Interface ---
-# [Your existing chat interface code goes here]
-# Include all your existing chat functionality
-# ...
-
-# --- Image Generation Section ---
-st.markdown("---")
-st.subheader("Image Generation")
-
-# Regular Image Generation
-st.subheader("Safe for Work Images")
-img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
-
-if st.button("Image Banao", key="generate_img_btn"):
-    with st.spinner("Image ban rahi hai..."):
-        img = generate_image_stability(img_prompt)
-        if img:
-            st.image(img, caption="Tumhari Image")
-            # Download link
-            buffered = io.BytesIO()
-            img.save(buffered, format="PNG")
-            img_str = base64.b64encode(buffered.getvalue()).decode()
-            href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
-            st.markdown(href, unsafe_allow_html=True)
-
-# NSFW Image Generation (with age verification)
-st.markdown("---")
-with st.container():
-    st.markdown('<div class="nsfw-section">', unsafe_allow_html=True)
-    
-    st.markdown("## **NSFW Image Generator (18+ Only)** 🔞")
-    st.warning("This section contains adult content. You must be 18+ to use this feature.")
-    
-    age_verified = st.checkbox("I confirm I am 18+ years old")
-    
-    if age_verified:
-        nsfw_prompt = st.text_input("Jo bhi soch ke likho (e.g., 'sexy elf girl', 'hot desi bhabhi')", key="nsfw_prompt")
-        
-        if st.button("Banao Tasveer", key="generate_nsfw"):
-            if nsfw_prompt.strip() != "":
-                with st.spinner("Image ban rahi hai... (NSFW)"):
-                    image_url = generate_nsfw_image(nsfw_prompt)
-                    if image_url:
-                        st.image(image_url, caption="Yeh lo NSFW Image", use_column_width=True)
-                        st.markdown(f"[**Image Download Link**]({image_url})")
-                        st.warning("This image is saved on Replicate servers. Download it if you want to keep it.")
-            else:
-                st.warning("Pehle koi prompt toh likho bhai.")
-    else:
-        st.error("You must verify your age to access NSFW content")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Stability AI Image Generation Function ---
 def generate_image_stability(prompt):

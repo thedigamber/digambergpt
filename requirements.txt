@@ -1,6 +1,10 @@
-streamlit
-google-generativeai
-emoji
-PyPDF2
-Pillow
-gTTS
+streamlit>=1.22.0
+google-generativeai>=0.3.0
+emoji>=2.0.0
+PyPDF2>=3.0.0
+Pillow>=9.0.0
+gTTS>=2.3.0
+stability-sdk>=0.4.0
+protobuf>=3.20.0
+python-dotenv>=0.19.0
+uuid>=1.30.0

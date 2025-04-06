@@ -53,6 +53,8 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = {"New Chat": []}
 if "selected_history" not in st.session_state:
     st.session_state.selected_history = "New Chat"
+if "new_chat_created" not in st.session_state:
+    st.session_state.new_chat_created = False
 
 # --- Sidebar (Scrollable History Buttons) ---
 with st.sidebar:
@@ -83,16 +85,26 @@ with st.sidebar:
     st.markdown("### Chat History")
     st.markdown('<div class="chat-history">', unsafe_allow_html=True)
 
-    for key in list(st.session_state.chat_history.keys()):
+    # Add "New Chat" button separately
+    if st.button("New Chat", key="new_chat_button"):
+        new_chat_name = f"Chat {len(st.session_state.chat_history)}"
+        st.session_state.chat_history[new_chat_name] = []
+        st.session_state.selected_history = new_chat_name
+        st.session_state.new_chat_created = True
+        st.experimental_rerun()
+
+    # Display existing chats
+    for key in [k for k in st.session_state.chat_history.keys() if k != "New Chat"]:
         if st.button(key, key=key):
             st.session_state.selected_history = key
+            st.session_state.new_chat_created = False
             st.experimental_rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
     selected = st.session_state.selected_history
 
-    if selected != "New Chat":
+    if selected != "New Chat" and not st.session_state.new_chat_created:
         new_title = st.text_input("Rename Chat", value=selected, key="rename_input")
         if st.button("Save Name"):
             if new_title and new_title != selected:
@@ -110,6 +122,7 @@ with st.sidebar:
         if st.button("Delete Chat"):
             del st.session_state.chat_history[selected]
             st.session_state.selected_history = "New Chat"
+            st.session_state.new_chat_created = True
             st.experimental_rerun()
 
 # --- Options ---
@@ -161,6 +174,8 @@ def is_abusive_or_disrespectful(text):
 # --- On Submit ---
 if submitted and query.strip():
     selected_chat = st.session_state.selected_history
+    if selected_chat not in st.session_state.chat_history:
+        st.session_state.chat_history[selected_chat] = []
     st.session_state.chat_history[selected_chat].append(("user", query))
 
     if is_abusive_or_disrespectful(query):
@@ -188,17 +203,19 @@ if submitted and query.strip():
     st.session_state.chat_history[selected_chat].append(("assistant", reply))
 
 # --- Display Chat ---
-for role, msg in st.session_state.chat_history[st.session_state.selected_history]:
-    if role == "user":
-        st.markdown(f"<div class='chat-bubble'><strong>You:</strong> {msg}</div>", unsafe_allow_html=True)
-    else:
-        st.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong></div>", unsafe_allow_html=True)
-        display_typing_effect(msg)
+current_chat = st.session_state.selected_history
+if current_chat in st.session_state.chat_history:
+    for role, msg in st.session_state.chat_history[current_chat]:
+        if role == "user":
+            st.markdown(f"<div class='chat-bubble'><strong>You:</strong> {msg}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong></div>", unsafe_allow_html=True)
+            display_typing_effect(msg)
 
 # --- Voice Output ---
 voice_toggle = st.checkbox("Speak Response (Hindi)")
-if voice_toggle and st.session_state.chat_history[st.session_state.selected_history]:
-    last_role, last_response = st.session_state.chat_history[st.session_state.selected_history][-1]
+if voice_toggle and current_chat in st.session_state.chat_history and st.session_state.chat_history[current_chat]:
+    last_role, last_response = st.session_state.chat_history[current_chat][-1]
     if last_role == "assistant":
         tts = gTTS(text=last_response, lang='hi')
         filename = f"voice_{uuid.uuid4().hex}.mp3"

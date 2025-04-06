@@ -19,7 +19,7 @@ model_fast = genai.GenerativeModel("gemini-2.0-flash")
 model_deep = genai.GenerativeModel("gemini-1.5-pro")
 
 # --- Stability AI Image Generation Function ---
-def generate_image_stability(prompt):
+def generate_image_stability(prompt, width, height):
     try:
         # Check if API key exists
         if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
@@ -36,8 +36,8 @@ def generate_image_stability(prompt):
             seed=12345,
             steps=50,
             cfg_scale=8.0,
-            width=512,
-            height=512,
+            width=width,
+            height=height,
             samples=1,
             sampler=generation.SAMPLER_K_DPMPP_2M
         )
@@ -83,6 +83,27 @@ st.markdown("""
     });
     </script>
 """, unsafe_allow_html=True)
+
+# --- Image Generator UI (somewhere below where you use the function) ---
+st.subheader("Image Generator (Stability AI)")
+
+prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", "")
+resolution = st.selectbox("Image Resolution Chuno:", ["512x512", "768x768", "1024x1024"])
+
+if st.button("Image Banao"):
+    width, height = map(int, resolution.split("x"))
+    img = generate_image_stability(prompt, width, height)
+    if img:
+        st.image(img, caption="Tumhari Image")
+        st.markdown(get_image_download_link(img), unsafe_allow_html=True)
+
+# --- Helper for download ---
+def get_image_download_link(img):
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    byte_im = buf.getvalue()
+    b64 = base64.b64encode(byte_im).decode()
+    return f'<a href="data:image/png;base64,{b64}" download="generated_image.png">Download Image</a>'
 
 # --- Title & Avatar ---
 col1, col2 = st.columns([1, 8])

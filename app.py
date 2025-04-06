@@ -54,11 +54,43 @@ if "chat_history" not in st.session_state:
 if "selected_history" not in st.session_state:
     st.session_state.selected_history = "New Chat"
 
-# --- Sidebar (History) ---
+# --- Sidebar (Scrollable History Buttons) ---
 with st.sidebar:
+    st.markdown("""
+        <style>
+        .chat-history {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .chat-history button {
+            width: 100%;
+            text-align: left;
+            margin-bottom: 5px;
+            background-color: #262626;
+            color: #39ff14;
+            border: none;
+            border-radius: 6px;
+            padding: 8px;
+        }
+        .chat-history button:hover {
+            background-color: #39ff14;
+            color: black;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.markdown("### Chat History")
-    selected = st.selectbox("Choose a chat", list(st.session_state.chat_history.keys()))
-    st.session_state.selected_history = selected
+    st.markdown('<div class="chat-history">', unsafe_allow_html=True)
+
+    for key in list(st.session_state.chat_history.keys()):
+        if st.button(key, key=key):
+            st.session_state.selected_history = key
+            st.experimental_rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    selected = st.session_state.selected_history
 
     if selected != "New Chat":
         new_title = st.text_input("Rename Chat", value=selected, key="rename_input")
@@ -68,7 +100,6 @@ with st.sidebar:
                 st.session_state.selected_history = new_title
                 st.experimental_rerun()
 
-        # Export chat
         export_text = ""
         for role, msg in st.session_state.chat_history[selected]:
             prefix = "You" if role == "user" else "DigamberGPT"
@@ -76,7 +107,6 @@ with st.sidebar:
 
         st.download_button("Export Chat (.txt)", export_text, file_name=f"{selected.replace(' ', '_')}.txt", mime="text/plain")
 
-        # Delete chat
         if st.button("Delete Chat"):
             del st.session_state.chat_history[selected]
             st.session_state.selected_history = "New Chat"
@@ -118,7 +148,7 @@ def display_typing_effect(text):
 hindi_gaalis = [
     "Abe madarchod, teri maa ki chut mein Google Search ka history bhar dunga!",
     "Abe madarchod, teri behan ki chut mein neutron bomb daal ke usko vaporize kar dunga...",
-    # ... Add 100+ creative gaalis as needed
+    # ... Add more creative gaalis
 ]
 
 # --- Abuse Check ---

@@ -55,6 +55,14 @@ def generate_image_stability(prompt, width, height):
         st.error(f"Image generation failed: {str(e)}")
         return None
 
+# --- Helper for download ---
+def get_image_download_link(img):
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    byte_im = buf.getvalue()
+    b64 = base64.b64encode(byte_im).decode()
+    return f'<a href="data:image/png;base64,{b64}" download="generated_image.png">Download Image</a>'
+
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
 st.markdown("""
@@ -84,18 +92,22 @@ st.markdown("""
     </script>
 """, unsafe_allow_html=True)
 
-# --- Image Generator UI (somewhere below where you use the function) ---
-st.subheader("Image Generator (Stability AI)")
+# ------------------ TABS START HERE ------------------
+tab1, tab2 = st.tabs(["🖼️ Image Generator", "💬 DigamberGPT"])
 
-prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", "")
-resolution = st.selectbox("Image Resolution Chuno:", ["512x512", "768x768", "1024x1024"])
+# --- Tab 1: Image Generator ---
+with tab1:
+    st.subheader("Image Generator (Stability AI)")
 
-if st.button("Image Banao"):
-    width, height = map(int, resolution.split("x"))
-    img = generate_image_stability(prompt, width, height)
-    if img:
-        st.image(img, caption="Tumhari Image")
-        st.markdown(get_image_download_link(img), unsafe_allow_html=True)
+    prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", "")
+    resolution = st.selectbox("Image Resolution Chuno:", ["512x512", "768x768", "1024x1024"])
+
+    if st.button("Image Banao"):
+        width, height = map(int, resolution.split("x"))
+        img = generate_image_stability(prompt, width, height)
+        if img:
+            st.image(img, caption="Tumhari Image")
+            st.markdown(get_image_download_link(img), unsafe_allow_html=True)
 
 # --- Helper for download ---
 def get_image_download_link(img):

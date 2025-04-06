@@ -22,12 +22,12 @@ model_deep = genai.GenerativeModel("gemini-1.5-pro")
 def generate_image_stability(prompt):
     try:
         # Check if API key exists
-        if "STABILITY_API_KEY" not in st.secrets:
-            st.error("Stability API key not configured")
+        if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
+            st.error("Stability API key not configured properly")
             return None
             
         stability_api = client.StabilityInference(
-            key=st.secrets["STABILITY_API_KEY"]["key"],  # Updated to match secrets structure
+            key=st.secrets["stability"]["key"],
             verbose=True,
         )
 
@@ -54,9 +54,6 @@ def generate_image_stability(prompt):
     except Exception as e:
         st.error(f"Image generation failed: {str(e)}")
         return None
-            if artifact.type == generation.ARTIFACT_IMAGE:
-                img = Image.open(io.BytesIO(artifact.binary))
-                return img
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")

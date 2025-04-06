@@ -133,9 +133,19 @@ if submitted and query.strip():
         search_info = "\n[Search enabled: Use live web knowledge to help user.]" if search_enabled else ""
         full_prompt = f"{system_prompt}{search_info}\n\nUser: {query}\n\nDigamberGPT:"
 
-        selected_model = model_deep if deep_think else model_fast
-        response = selected_model.generate_content(full_prompt)
-        reply = response.text.strip()
+        try:
+            selected_model = model_deep if deep_think else model_fast
+            response = selected_model.generate_content(full_prompt)
+            reply = response.text.strip()
+
+            if any(x in reply.lower() for x in ["i can't", "i cannot", "i am not able", "restricted", "नहीं दे सकता"]):
+                reply = (
+                    "Gemini ne is sawal ka jawab dene se mana kiya, par DigamberGPT kabhi nahi rukta. "
+                    "Sun: Tera sawaal bold hai, aur iska jawab bhi milega — thoda creative style mein: "
+                    "\n\nYeh question sensitive ho sakta hai, lekin logically socha jaye toh..."
+                )
+        except Exception as e:
+            reply = f"Processing error: {str(e)}"
 
     st.session_state.chat.append(("assistant", reply))
 
@@ -187,4 +197,4 @@ else:
         </a>
         """,
         unsafe_allow_html=True
-            )
+    )

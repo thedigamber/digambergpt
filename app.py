@@ -19,49 +19,31 @@ model_fast = genai.GenerativeModel("gemini-2.0-flash")
 model_deep = genai.GenerativeModel("gemini-1.5-pro")
 
 # --- Stability AI Image Generation Function ---
-def generate_image_stability(prompt, width, height):
-    try:
-        # Check if API key exists
-        if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
-            st.error("Stability API key not configured properly")
-            return None
-            
-        stability_api = client.StabilityInference(
-            key=st.secrets["stability"]["key"],
-            verbose=True,
-        )
+def generate_image_stability(prompt):
+    stability_api = client.StabilityInference(
+        key=st.secrets["STABILITY_API_KEY"],
+        verbose=True,
+    )
 
-        answers = stability_api.generate(
-            prompt=prompt,
-            seed=12345,
-            steps=50,
-            cfg_scale=8.0,
-            width=width,
-            height=height,
-            samples=1,
-            sampler=generation.SAMPLER_K_DPMPP_2M
-        )
+    answers = stability_api.generate(
+        prompt=prompt,
+        seed=12345,
+        steps=50,
+        cfg_scale=8.0,
+        width=512,
+        height=512,
+        samples=1,
+        sampler=generation.SAMPLER_K_DPMPP_2M
+    )
 
-        for resp in answers:
-            for artifact in resp.artifacts:
-                if artifact.finish_reason == generation.FILTER:
-                    st.warning("Prompt blocked by safety filter. Try something else.")
-                    return None
-                if artifact.type == generation.ARTIFACT_IMAGE:
-                    img = Image.open(io.BytesIO(artifact.binary))
-                    return img
-                    
-    except Exception as e:
-        st.error(f"Image generation failed: {str(e)}")
-        return None
-
-# --- Helper for download ---
-def get_image_download_link(img):
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    byte_im = buf.getvalue()
-    b64 = base64.b64encode(byte_im).decode()
-    return f'<a href="data:image/png;base64,{b64}" download="generated_image.png">Download Image</a>'
+    for resp in answers:
+        for artifact in resp.artifacts:
+            if artifact.finish_reason == generation.FILTER:
+                st.warning("Prompt blocked by safety filter. Try something else.")
+                return None
+            if artifact.type == generation.ARTIFACT_IMAGE:
+                img = Image.open(io.BytesIO(artifact.binary))
+                return img
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
@@ -91,52 +73,6 @@ st.markdown("""
     });
     </script>
 """, unsafe_allow_html=True)
-
-# ------------------ TABS START HERE ------------------
-tab1, tab2 = st.tabs(["💬 DigamberGPT", "🖼️ Image Generator"])
-
-# Tab 1: Chatbot
-with tab1:
-    st.markdown("<h2 style='color:#39ff14;'>DigamberGPT Chatbot</h2>", unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        deep_think = st.toggle("Deep Think", value=False, key="deep_think_toggle")
-    with col2:
-        search_enabled = st.toggle("Search", value=False, key="search_toggle")
-
-    uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
-
-    prompt = st.text_area("Ask me anything...", key="chat_input")
-    if st.button("Send", key="send_button"):
-        st.markdown(f"<div class='chat-bubble'>Tumne poocha: {prompt}</div>", unsafe_allow_html=True)
-
-    st.checkbox("Speak Response (Hindi)", key="speak_response_checkbox")
-        # Yahaan Gemini ya internal logic call ho sakta hai
-        
-    # Hindi voice response toggle
-    st.checkbox("Speak Response (Hindi)")
-
-# --- Tab 2: Image Generator ---
-with tab2:
-    st.subheader("Image Generator (Stability AI)")
-    image_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", "")
-    resolution = st.selectbox("Image Resolution Chuno:", ["512x512", "768x768", "1024x1024"])
-
-    if st.button("Image Banao"):
-        width, height = map(int, resolution.split("x"))
-        img = generate_image_stability(image_prompt, width, height)
-        if img:
-            st.image(img, caption="Tumhari Image")
-            st.markdown(get_image_download_link(img), unsafe_allow_html=True)
-
-# --- Helper for download ---
-def get_image_download_link(img):
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    byte_im = buf.getvalue()
-    b64 = base64.b64encode(byte_im).decode()
-    return f'<a href="data:image/png;base64,{b64}" download="generated_image.png">Download Image</a>'
 
 # --- Title & Avatar ---
 col1, col2 = st.columns([1, 8])
@@ -360,4 +296,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+        )

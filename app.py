@@ -93,18 +93,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------ TABS START HERE ------------------
-tab1, tab2 = st.tabs(["🖼️ Image Generator", "💬 DigamberGPT"])
+tab1, tab2 = st.tabs(["💬 DigamberGPT", "🖼️ Image Generator"])
 
-# --- Tab 1: Image Generator ---
+# --- Tab 1: Chatbot ---
 with tab1:
-    st.subheader("Image Generator (Stability AI)")
+    st.markdown("<h2 style='color:#39ff14;'>DigamberGPT Chatbot</h2>", unsafe_allow_html=True)
 
-    prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", "")
+    # Deep Think & Search toggles
+    col1, col2 = st.columns(2)
+    with col1:
+        deep_think = st.toggle("Deep Think")
+    with col2:
+        search_enabled = st.toggle("Search")
+
+    # File upload
+    uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
+
+    # Chat input
+    prompt = st.text_area("Ask me anything...", key="chat_input")
+    if st.button("Send"):
+        st.markdown(f"<div class='chat-bubble'>Tumne poocha: {prompt}</div>", unsafe_allow_html=True)
+        # Yahaan Gemini ya internal logic call ho sakta hai
+        
+    # Hindi voice response toggle
+    st.checkbox("Speak Response (Hindi)")
+
+# --- Tab 2: Image Generator ---
+with tab2:
+    st.subheader("Image Generator (Stability AI)")
+    image_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", "")
     resolution = st.selectbox("Image Resolution Chuno:", ["512x512", "768x768", "1024x1024"])
 
     if st.button("Image Banao"):
         width, height = map(int, resolution.split("x"))
-        img = generate_image_stability(prompt, width, height)
+        img = generate_image_stability(image_prompt, width, height)
         if img:
             st.image(img, caption="Tumhari Image")
             st.markdown(get_image_download_link(img), unsafe_allow_html=True)

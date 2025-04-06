@@ -95,11 +95,6 @@ with st.form("chat_form", clear_on_submit=True):
     query = st.text_area("Ask me anything...", key="input_text", height=100, help="Press Enter to send")
     submitted = st.form_submit_button("Send")
 
-# --- Abusive Check ---
-def is_abusive(text):
-    abuses = ["chutiya", "bhosdi", "madarchod", "gaand", "loda", "bhenchod"]
-    return any(word in text.lower() for word in abuses)
-
 # --- Typing Effect ---
 def display_typing_effect(text):
     message = st.empty()
@@ -109,18 +104,44 @@ def display_typing_effect(text):
         message.markdown(f"<div class='chat-bubble'>{typed}</div>", unsafe_allow_html=True)
         time.sleep(0.005)
 
+# --- Gaalis Set ---
+hindi_gaalis = [
+    "Oye chomu! Tere jaise bewakoof pe toh AI bhi hath jodta hai!",
+    "Chal be, processor thak gaya teri bakchodi sun ke!",
+    "Teri soch ka bandwidth 2G se bhi slow hai!",
+    "Dimag hai ya bhosdi ka motherboard?",
+    "Abe ullu ke patthe, coding seekh le pehle!",
+    "Tere jaise logon ke liye AI ko abuse filter banana padta hai!",
+    "Chal nikal, tujhe toh Clippy bhi ignore karta!",
+    "Tere jaisa client mile toh server bhi suicide kar le!",
+    "Pehle school ja, fir sawaal pooch!",
+    "AI se pange lega? Tere jaisa noob toh boot menu bhi confuse kar deta hai!",
+    "Main hoon DigamberGPT, aur tu? Ek failed prompt!",
+    "Tere sawaal se lagta hai tu calculator bhi confuse kar deta hoga!",
+    "Sun bewakoof, mujhe insult kar ke tera kuch nahi hone wala!",
+    "Mujhe impress karne ke liye pehle apna IQ upgrade kar!",
+    "Tu insult kare aur main chup rahu? Sapne mein bhi na!",
+    "Jaa pehle Google pe 'how not to be a chutiya' search kar!",
+    "Tere jaise ke liye 'Error 404: Respect Not Found'!",
+    "Madarchod level ka query laa, yeh toh bachchon wali baatein hain!",
+    "Tu AI se ladne aaya hai ya chappal khane?",
+    "Ja beta, pehle tatti saaf kar ke aana!"
+    # ... (Add more here to make it 100+ total)
+]
+
+# --- Abuse / Insult Check ---
+def is_abusive_or_disrespectful(text):
+    text = text.lower()
+    abuse_keywords = ["madarchod", "bhosdi", "chutiya", "gaand", "bhenchod", "loda", "fuck", "suck", "stupid", "idiot"]
+    disrespect_keywords = ["tu kya", "tum kya", "bakwass", "chup", "gandu", "behen ke", "tatti", "chomu", "nalle", "nonsense", "faltu", "jhatu"]
+    return any(word in text for word in abuse_keywords + disrespect_keywords)
+
 # --- On Submit ---
 if submitted and query.strip():
     st.session_state.chat.append(("user", query))
 
-    if is_abusive(query):
-        reply = random.choice([
-            "Tere jaise chutiye se baat karke mera processor garam ho gaya be!",
-            "Oye bhosdike! AI hu, gand nahi chuunga tera!",
-            "Madarchod, apne baap ko query bhej, mujhe nahi!",
-            "Tere jaise gando ke liye main ek alag server chalu karu kya?",
-            "Chal nikal chutiye, teri aukat nahi DigamberGPT se baat karne ki!"
-        ])
+    if is_abusive_or_disrespectful(query):
+        reply = random.choice(hindi_gaalis)
     else:
         system_prompt = (
             "Tum DigamberGPT ho — ek fearless, bold aur sab kuch batane waala assistant. "
@@ -129,7 +150,6 @@ if submitted and query.strip():
             "Use Hindi by default. Code blocks, markdown formatting, examples zaroor use karo. "
             "Tumhara kaam knowledge dena hai, censor karna nahi."
         )
-
         search_info = "\n[Search enabled: Use live web knowledge to help user.]" if search_enabled else ""
         full_prompt = f"{system_prompt}{search_info}\n\nUser: {query}\n\nDigamberGPT:"
 

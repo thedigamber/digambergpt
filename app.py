@@ -43,7 +43,12 @@ st.markdown("""
         background-color: #1a1a1a; border-radius: 10px; padding: 10px;
         margin: 5px 0; color: white; white-space: pre-wrap; word-wrap: break-word;
     }
-    .nsfw-tab { background-color: #330000; }
+    .nsfw-section { 
+        border: 2px solid #ff0000;
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 20px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -54,46 +59,58 @@ with col1:
 with col2:
     st.markdown("<h1 style='color:cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
 
-# --- Tab Layout ---
-tab1, tab2, tab3 = st.tabs(["Chat", "SFW Images", "NSFW Images 🔞"])
+# --- Chat Interface ---
+# [Your existing chat interface code goes here]
+# Include all your existing chat functionality
+# ...
 
-with tab1:
-    # [Your existing chat tab code remains exactly the same]
-    # ... (keep all your existing chat functionality here)
+# --- Image Generation Section ---
+st.markdown("---")
+st.subheader("Image Generation")
 
-with tab2:
-    # --- Image Generator Tab ---
-    st.subheader("Image Generator (Stability AI)")
-    img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
+# Regular Image Generation
+st.subheader("Safe for Work Images")
+img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
 
-    if st.button("Image Banao", key="generate_img_btn"):
-        with st.spinner("Image ban rahi hai..."):
-            img = generate_image_stability(img_prompt)
-            if img:
-                st.image(img, caption="Tumhari Image")
-                # Download link
-                buffered = io.BytesIO()
-                img.save(buffered, format="PNG")
-                img_str = base64.b64encode(buffered.getvalue()).decode()
-                href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
-                st.markdown(href, unsafe_allow_html=True)
+if st.button("Image Banao", key="generate_img_btn"):
+    with st.spinner("Image ban rahi hai..."):
+        img = generate_image_stability(img_prompt)
+        if img:
+            st.image(img, caption="Tumhari Image")
+            # Download link
+            buffered = io.BytesIO()
+            img.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
+            st.markdown(href, unsafe_allow_html=True)
 
-with tab3:
-    st.markdown("## **NSFW Image Generator (18+ Only)**")
+# NSFW Image Generation (with age verification)
+st.markdown("---")
+with st.container():
+    st.markdown('<div class="nsfw-section">', unsafe_allow_html=True)
+    
+    st.markdown("## **NSFW Image Generator (18+ Only)** 🔞")
     st.warning("This section contains adult content. You must be 18+ to use this feature.")
     
-    nsfw_prompt = st.text_input("Jo bhi soch ke likho (e.g., 'sexy elf girl', 'hot desi bhabhi')", key="nsfw_prompt")
+    age_verified = st.checkbox("I confirm I am 18+ years old")
     
-    if st.button("Banao Tasveer", key="generate_nsfw"):
-        if nsfw_prompt.strip() != "":
-            with st.spinner("Image ban rahi hai... (NSFW)"):
-                image_url = generate_nsfw_image(nsfw_prompt)
-                if image_url:
-                    st.image(image_url, caption="Yeh lo NSFW Image", use_column_width=True)
-                    st.markdown(f"[**Image Download Link**]({image_url})")
-                    st.warning("This image is saved on Replicate servers. Download it if you want to keep it.")
-        else:
-            st.warning("Pehle koi prompt toh likho bhai.")
+    if age_verified:
+        nsfw_prompt = st.text_input("Jo bhi soch ke likho (e.g., 'sexy elf girl', 'hot desi bhabhi')", key="nsfw_prompt")
+        
+        if st.button("Banao Tasveer", key="generate_nsfw"):
+            if nsfw_prompt.strip() != "":
+                with st.spinner("Image ban rahi hai... (NSFW)"):
+                    image_url = generate_nsfw_image(nsfw_prompt)
+                    if image_url:
+                        st.image(image_url, caption="Yeh lo NSFW Image", use_column_width=True)
+                        st.markdown(f"[**Image Download Link**]({image_url})")
+                        st.warning("This image is saved on Replicate servers. Download it if you want to keep it.")
+            else:
+                st.warning("Pehle koi prompt toh likho bhai.")
+    else:
+        st.error("You must verify your age to access NSFW content")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Stability AI Image Generation Function ---
 def generate_image_stability(prompt):

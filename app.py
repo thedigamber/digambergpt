@@ -20,30 +20,40 @@ model_deep = genai.GenerativeModel("gemini-1.5-pro")
 
 # --- Stability AI Image Generation Function ---
 def generate_image_stability(prompt):
-    stability_api = client.StabilityInference(
-        key=st.secrets["STABILITY_API_KEY"],
-        verbose=True,
-    )
+    try:
+        # Check if API key exists
+        if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
+            st.error("Stability API key not configured properly")
+            return None
+            
+        stability_api = client.StabilityInference(
+            key=st.secrets["stability"]["key"],
+            verbose=True,
+        )
 
-    answers = stability_api.generate(
-        prompt=prompt,
-        seed=12345,
-        steps=50,
-        cfg_scale=8.0,
-        width=512,
-        height=512,
-        samples=1,
-        sampler=generation.SAMPLER_K_DPMPP_2M
-    )
+        answers = stability_api.generate(
+            prompt=prompt,
+            seed=12345,
+            steps=50,
+            cfg_scale=8.0,
+            width=512,
+            height=512,
+            samples=1,
+            sampler=generation.SAMPLER_K_DPMPP_2M
+        )
 
-    for resp in answers:
-        for artifact in resp.artifacts:
-            if artifact.finish_reason == generation.FILTER:
-                st.warning("Prompt blocked by safety filter. Try something else.")
-                return None
-            if artifact.type == generation.ARTIFACT_IMAGE:
-                img = Image.open(io.BytesIO(artifact.binary))
-                return img
+        for resp in answers:
+            for artifact in resp.artifacts:
+                if artifact.finish_reason == generation.FILTER:
+                    st.warning("Prompt blocked by safety filter. Try something else.")
+                    return None
+                if artifact.type == generation.ARTIFACT_IMAGE:
+                    img = Image.open(io.BytesIO(artifact.binary))
+                    return img
+                    
+    except Exception as e:
+        st.error(f"Image generation failed: {str(e)}")
+        return None
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")

@@ -95,24 +95,23 @@ st.markdown("""
 # ------------------ TABS START HERE ------------------
 tab1, tab2 = st.tabs(["💬 DigamberGPT", "🖼️ Image Generator"])
 
-# --- Tab 1: Chatbot ---
+# Tab 1: Chatbot
 with tab1:
     st.markdown("<h2 style='color:#39ff14;'>DigamberGPT Chatbot</h2>", unsafe_allow_html=True)
 
-    # Deep Think & Search toggles
     col1, col2 = st.columns(2)
     with col1:
-        deep_think = st.toggle("Deep Think")
+        deep_think = st.toggle("Deep Think", value=False, key="deep_think_toggle")
     with col2:
-        search_enabled = st.toggle("Search")
+        search_enabled = st.toggle("Search", value=False, key="search_toggle")
 
-    # File upload
     uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
 
-    # Chat input
     prompt = st.text_area("Ask me anything...", key="chat_input")
-    if st.button("Send"):
+    if st.button("Send", key="send_button"):
         st.markdown(f"<div class='chat-bubble'>Tumne poocha: {prompt}</div>", unsafe_allow_html=True)
+
+    st.checkbox("Speak Response (Hindi)", key="speak_response_checkbox")
         # Yahaan Gemini ya internal logic call ho sakta hai
         
     # Hindi voice response toggle

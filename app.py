@@ -70,6 +70,8 @@ st.markdown("""
     .chat-container {
         height: 60vh;
         overflow-y: scroll;
+        display: flex;
+        flex-direction: column-reverse; /* New messages appear at the bottom */
         padding-right: 10px;
         margin-bottom: 70px;
         border: none; /* Removed green border */
@@ -217,7 +219,7 @@ with tab1:
     # --- Display Chat ---
     current_chat = st.session_state.selected_history
     if current_chat in st.session_state.chat_history:
-        for role, msg in st.session_state.chat_history[current_chat]:
+        for role, msg in reversed(st.session_state.chat_history[current_chat]):  # Display in reverse order
             if role == "user":
                 st.markdown(f"<div class='chat-bubble'><strong>You:</strong> {msg}</div>", unsafe_allow_html=True)
             else:
@@ -336,4 +338,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-                )
+    )

@@ -72,10 +72,11 @@ st.markdown("""
         overflow-y: scroll;
         padding-right: 10px;
         margin-bottom: 70px;
-        border: 1px solid #39ff14;
+        border: none; /* Removed green border */
         border-radius: 10px;
         padding: 15px;
         position: relative;
+        background-color: #0f0f0f; /* Match the background color */
     }
     .chat-input-container {
         position: fixed;
@@ -335,4 +336,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-        )
+                )

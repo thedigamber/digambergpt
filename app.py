@@ -256,7 +256,7 @@ with tab1:
         text = text.lower()
         abuse_keywords = ["madarchod", "bhosdi", "chutiya", "gaand", "bhenchod", "loda", "fuck", "suck", "stupid", "idiot"]
         disrespect_keywords = ["tu kya", "tum kya", "bakwass", "chup", "gandu", "behen ke", "tatti", "chomu", "nalle", "jhatu"]
-        return any(word in text for word in abuse keywords + disrespect_keywords)
+        return any(word in text for word in abuse_keywords + disrespect_keywords)
 
     # --- On Submit ---
     if query and query.strip():

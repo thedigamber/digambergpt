@@ -68,23 +68,23 @@ st.markdown("""
     }
     .tab-content { padding: 10px; }
     .chat-container {
-        height: 60vh;
+        height: 70vh;
         overflow-y: auto;
         padding-right: 10px;
         margin-bottom: 20px;
         border: 1px solid #39ff14;
         border-radius: 10px;
         padding: 15px;
+        position: relative;
     }
     .chat-input-container {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 80%;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
         background-color: #0f0f0f;
         padding: 15px;
-        border-radius: 10px;
+        border-top: 1px solid #39ff14;
         z-index: 100;
     }
     </style>
@@ -225,11 +225,13 @@ with tab1:
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Input Box ---
+    st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
     with st.form("chat_form", clear_on_submit=True):
         query = st.text_area("Message DigamberGPT", key="input_text", height=100, 
                            placeholder="Type your message here...", 
                            help="Press Shift+Enter for new line, Enter to send")
         submitted = st.form_submit_button("Send")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Typing Effect ---
     def display_typing_effect(text):
@@ -333,4 +335,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+                )

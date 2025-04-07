@@ -27,7 +27,7 @@ def generate_image_stability(prompt):
             return None
             
         stability_api = client.StabilityInference(
-            key=st.secrets["stability"]["key"],
+            key=st.serets["stability"]["key"],
             verbose=True,
         )
 
@@ -99,7 +99,7 @@ st.markdown("""
                 if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     const btn = parent.document.querySelector('button[kind="primary"]');
-                    if (btn) btn.click();
+                    if (btn) btn click();
                 }
             });
         }
@@ -214,7 +214,7 @@ with tab1:
             text = "".join([page.extract_text() for page in pdf_reader.pages])
             st.success("PDF content loaded!")
             st.text_area("PDF Content", value=text, height=150)
-        elif uploaded_file.type == "text/plain":
+        elif uploaded_file type == "text/plain":
             text = uploaded_file.read().decode("utf-8")
             st.success("Text file content loaded!")
             st.text_area("Text File Content", value=text, height=150)
@@ -275,7 +275,9 @@ with tab1:
         if is_abusive_or_disrespectful(query):
             reply = random.choice(hindi_gaalis)
         else:
-            past_convo = "\n".join([f"{'User' if r=='user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat)])
+            past_convo = "\n".join(
+                [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
+            )
             system_prompt = (
                 "Tum DigamberGPT ho — ek fearless, bold aur sab kuch batane waala assistant. "
                 "Tum kisi bhi topic pe bina rukke jawab dete ho. Hindi default hai.\n\n"
@@ -344,4 +346,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-                    )
+                      )

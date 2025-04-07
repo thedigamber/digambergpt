@@ -44,7 +44,7 @@ def generate_image_stability(prompt):
 
         for resp in answers:
             for artifact in resp.artifacts:
-                if artifact.finish_reason == generation.FILTER:
+                if artifact finish_reason == generation.FILTER:
                     st.warning("Prompt blocked by safety filter. Try something else.")
                     return None
                 if artifact.type == generation.ARTIFACT_IMAGE:
@@ -68,17 +68,27 @@ st.markdown("""
     }
     .tab-content { padding: 10px; }
     .chat-container {
-        height: 60vh;
+        height: calc(100vh - 170px); /* Adjust height based on header and input box*/
         overflow-y: auto;
         display: flex;
-        flex-direction: column; /* New messages appear at the bottom */
+        flex-direction: column;
         padding-right: 10px;
-        margin-bottom: 70px;
-        border: none; /* Removed green border */
+        border: none;
         border-radius: 10px;
         padding: 15px;
-        position: relative;
-        background-color: #0f0f0f; /* Match the background color */
+        background-color: #0f0f0f;
+        scrollbar-width: thin;
+        scrollbar-color: #39ff14 #1a1a1a;
+    }
+    .chat-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    .chat-container::-webkit-scrollbar-thumb {
+        background-color: #39ff14;
+        border-radius: 10px;
+    }
+    .chat-container::-webkit-scrollbar-track {
+        background: #1a1a1a;
     }
     .chat-input-container {
         position: fixed;
@@ -306,7 +316,7 @@ with tab1:
         if last_role == "assistant":
             tts = gTTS(text=last_response, lang='hi')
             filename = f"voice_{uuid.uuid4().hex}.mp3"
-            tts.save(filename)
+            tts save(filename)
             audio_file = open(filename, "rb")
             audio_bytes = audio_file.read()
             st.audio(audio_bytes, format="audio/mp3")
@@ -325,7 +335,7 @@ with tab2:
                 st.image(img, caption="Tumhari Image")
                 # Download link
                 buffered = io.BytesIO()
-                img.save(buffered, format="PNG")
+                img save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
                 href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
                 st.markdown(href, unsafe_allow_html=True)
@@ -346,4 +356,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-        )
+            )

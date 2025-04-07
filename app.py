@@ -67,6 +67,26 @@ st.markdown("""
         margin: 5px 0; color: white; white-space: pre-wrap; word-wrap: break-word;
     }
     .tab-content { padding: 10px; }
+    .chat-container {
+        height: 60vh;
+        overflow-y: auto;
+        padding-right: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #39ff14;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    .chat-input-container {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        background-color: #0f0f0f;
+        padding: 15px;
+        border-radius: 10px;
+        z-index: 100;
+    }
     </style>
     <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -190,9 +210,25 @@ with tab1:
             st.success("Text file content loaded!")
             st.text_area("Text File Content", value=text, height=150)
 
+    # --- Chat Container ---
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    
+    # --- Display Chat ---
+    current_chat = st.session_state.selected_history
+    if current_chat in st.session_state.chat_history:
+        for role, msg in st.session_state.chat_history[current_chat]:
+            if role == "user":
+                st.markdown(f"<div class='chat-bubble'><strong>You:</strong> {msg}</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong> {msg}</div>", unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
     # --- Input Box ---
     with st.form("chat_form", clear_on_submit=True):
-        query = st.text_area("Ask me anything...", key="input_text", height=100)
+        query = st.text_area("Ask me anything...", key="input_text", height=100, 
+                           placeholder="Type your message here...", 
+                           help="Press Shift+Enter for new line, Enter to send")
         submitted = st.form_submit_button("Send")
 
     # --- Typing Effect ---
@@ -201,7 +237,7 @@ with tab1:
         typed = ""
         for char in text:
             typed += char
-            message.markdown(f"<div class='chat-bubble'>{typed}</div>", unsafe_allow_html=True)
+            message.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong> {typed}</div>", unsafe_allow_html=True)
             time.sleep(0.005)
 
     # --- Gaalis Set ---
@@ -248,16 +284,7 @@ with tab1:
                 reply = f"Error: {str(e)}"
 
         st.session_state.chat_history[selected_chat].append(("assistant", reply))
-
-    # --- Display Chat ---
-    current_chat = st.session_state.selected_history
-    if current_chat in st.session_state.chat_history:
-        for role, msg in st.session_state.chat_history[current_chat]:
-            if role == "user":
-                st.markdown(f"<div class='chat-bubble'><strong>You:</strong> {msg}</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong></div>", unsafe_allow_html=True)
-                display_typing_effect(msg)
+        st.rerun()
 
     # --- Voice Output ---
     voice_toggle = st.checkbox("Speak Response (Hindi)")
@@ -306,4 +333,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-            )
+        )

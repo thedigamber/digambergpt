@@ -27,7 +27,7 @@ def generate_image_stability(prompt):
             return None
             
         stability_api = client.StabilityInference(
-            key=st.serets["stability"]["key"],
+            key=st.secrets["stability"]["key"],
             verbose=True,
         )
 
@@ -99,7 +99,7 @@ st.markdown("""
                 if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     const btn = parent.document.querySelector('button[kind="primary"]');
-                    if (btn) btn click();
+                    if (btn) btn.click();
                 }
             });
         }
@@ -203,8 +203,8 @@ with tab1:
 
     # --- Options ---
     col1, col2 = st.columns(2)
-    deep_think = col1.toggle("Deep Think", value=False)
-    search_enabled = col2.toggle("Search", value=False)
+    deep_think = col1.checkbox("Deep Think", value=False)
+    search_enabled = col2.checkbox("Search", value=False)
 
     # --- File Upload ---
     uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
@@ -214,7 +214,7 @@ with tab1:
             text = "".join([page.extract_text() for page in pdf_reader.pages])
             st.success("PDF content loaded!")
             st.text_area("PDF Content", value=text, height=150)
-        elif uploaded_file type == "text/plain":
+        elif uploaded_file.type == "text/plain":
             text = uploaded_file.read().decode("utf-8")
             st.success("Text file content loaded!")
             st.text_area("Text File Content", value=text, height=150)
@@ -346,4 +346,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-                      )
+        )

@@ -25,7 +25,7 @@ def generate_image_stability(prompt):
         if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
             st.error("Stability API key not configured properly")
             return None
-            
+
         stability_api = client.StabilityInference(
             key=st.secrets["stability"]["key"],
             verbose=True,
@@ -44,13 +44,13 @@ def generate_image_stability(prompt):
 
         for resp in answers:
             for artifact in resp.artifacts:
-                if artifact finish_reason == generation.FILTER:
+                if artifact.finish_reason == generation.FILTER:
                     st.warning("Prompt blocked by safety filter. Try something else.")
                     return None
                 if artifact.type == generation.ARTIFACT_IMAGE:
                     img = Image.open(io.BytesIO(artifact.binary))
                     return img
-                    
+
     except Exception as e:
         st.error(f"Image generation failed: {str(e)}")
         return None
@@ -316,7 +316,7 @@ with tab1:
         if last_role == "assistant":
             tts = gTTS(text=last_response, lang='hi')
             filename = f"voice_{uuid.uuid4().hex}.mp3"
-            tts save(filename)
+            tts.save(filename)
             audio_file = open(filename, "rb")
             audio_bytes = audio_file.read()
             st.audio(audio_bytes, format="audio/mp3")
@@ -335,7 +335,7 @@ with tab2:
                 st.image(img, caption="Tumhari Image")
                 # Download link
                 buffered = io.BytesIO()
-                img save(buffered, format="PNG")
+                img.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
                 href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
                 st.markdown(href, unsafe_allow_html=True)

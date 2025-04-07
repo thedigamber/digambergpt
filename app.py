@@ -113,11 +113,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Title & Avatar ---
-col1, col2 = st.columns([1, 8])
-with col1:
-    st.image("https://i.imgur.com/3v5p4UQ.png", width=50)
-with col2:
-    st.markdown("<h1 style='color:cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
+st.markdown("""
+    <div style="text-align: center;">
+        <img src="https://github.com/thedigamber/digambergpt/raw/main/DigamberGPT_App_Icon_512x512.png" width="120">
+    </div>
+    """, unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color:cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
 
 # --- Tab Layout ---
 tab1, tab2 = st.tabs(["Chat", "Image Generator"])
@@ -339,4 +340,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+            )

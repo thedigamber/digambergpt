@@ -68,7 +68,7 @@ st.markdown("""
     }
     .tab-content { padding: 10px; }
     .chat-container {
-        height: calc(100vh - 170px); /* Adjust height based on header and input box */
+        height: 60vh; /* Limit the height to 60vh */
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -303,7 +303,7 @@ with tab1:
             audio_file = open(filename, "rb")
             audio_bytes = audio_file.read()
             st.audio(audio_bytes, format="audio/mp3")
-            audio_file.close()
+            audio_file close()
             os.remove(filename)
 
 with tab2:

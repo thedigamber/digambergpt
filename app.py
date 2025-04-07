@@ -3,11 +3,11 @@ import google.generativeai as genai
 import time
 import random
 
-from modules.chatbot import chatbot_ui
-from modules.image_gen import image_gen_ui
-from modules.file_reader import file_reader_ui
-from modules.settings import settings_ui
-from modules.apk_download import apk_ui
+from module.chatbot import chatbot_ui
+from module.image_gen import image_gen_ui
+from module.file_reader import file_reader_ui
+from module.settings import settings_ui
+from module.apk_download import apk_ui
 
 st.set_page_config(page_title="DigamberGPT", layout="wide")
 st.markdown("<h1 style='text-align: center; color:#39ff14;'>DigamberGPT</h1>", unsafe_allow_html=True)

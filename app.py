@@ -225,10 +225,8 @@ with tab1:
     current_chat = st.session_state.selected_history
     if current_chat in st.session_state.chat_history:
         for role, msg in st.session_state.chat_history[current_chat]:
-            if role == "user":
-                st.chat_message("user", msg)
-            else:
-                st.chat_message("assistant", msg)
+            with st.chat_message(role):
+                st.markdown(msg)
     
     st.markdown('</div>', unsafe_allow_html=True)
 

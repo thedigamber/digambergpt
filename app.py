@@ -256,7 +256,7 @@ with tab1:
         text = text.lower()
         abuse_keywords = ["madarchod", "bhosdi", "chutiya", "gaand", "bhenchod", "loda", "fuck", "suck", "stupid", "idiot"]
         disrespect_keywords = ["tu kya", "tum kya", "bakwass", "chup", "gandu", "behen ke", "tatti", "chomu", "nalle", "jhatu"]
-        return any(word in text for word in abuse_keywords + disrespect_keywords)
+        return any(word in text for word in abuse keywords + disrespect_keywords)
 
     # --- On Submit ---
     if query and query.strip():
@@ -303,7 +303,7 @@ with tab1:
             audio_file = open(filename, "rb")
             audio_bytes = audio_file.read()
             st.audio(audio_bytes, format="audio/mp3")
-            audio_file close()
+            audio_file.close()
             os.remove(filename)
 
 with tab2:

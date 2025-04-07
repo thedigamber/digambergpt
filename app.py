@@ -68,7 +68,7 @@ st.markdown("""
     }
     .tab-content { padding: 10px; }
     .chat-container {
-        height: calc(100vh - 170px); /* Adjust height based on header and input box*/
+        height: calc(100vh - 170px); /* Adjust height based on header and input box */
         overflow-y: auto;
         display: flex;
         flex-direction: column;

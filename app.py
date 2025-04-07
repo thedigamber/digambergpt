@@ -103,17 +103,6 @@ st.markdown("""
     </style>
     <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const textarea = parent.document.querySelector('textarea');
-        if (textarea) {
-            textarea.addEventListener("keydown", function (e) {
-                if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    const btn = parent.document.querySelector('button[kind="primary"]');
-                    if (btn) btn.click();
-                }
-            });
-        }
-
         // Auto-scroll to the bottom of the chat container
         const chatContainer = parent.document.querySelector('.chat-container');
         if (chatContainer) {
@@ -237,19 +226,15 @@ with tab1:
     if current_chat in st.session_state.chat_history:
         for role, msg in st.session_state.chat_history[current_chat]:
             if role == "user":
-                st.markdown(f"<div class='chat-bubble'><strong>You:</strong> {msg}</div>", unsafe_allow_html=True)
+                st.chat_message("user", msg)
             else:
-                st.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong> {msg}</div>", unsafe_allow_html=True)
+                st.chat_message("assistant", msg)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Input Box ---
     st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-    with st.form("chat_form", clear_on_submit=True):
-        query = st.text_area("Message DigamberGPT", key="input_text", height=100, 
-                           placeholder="Type your message here...", 
-                           help="Press Shift+Enter for new line, Enter to send")
-        submitted = st.form_submit_button("Send")
+    query = st.chat_input("Message DigamberGPT")
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Typing Effect ---
@@ -276,7 +261,7 @@ with tab1:
         return any(word in text for word in abuse_keywords + disrespect_keywords)
 
     # --- On Submit ---
-    if submitted and query.strip():
+    if query and query.strip():
         selected_chat = st.session_state.selected_history
         if selected_chat not in st.session_state.chat_history:
             st.session_state.chat_history[selected_chat] = []
@@ -356,4 +341,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-            )
+    )

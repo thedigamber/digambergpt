@@ -3,7 +3,7 @@ import google.generativeai as genai
 import time
 import random
 
-from modules.chatbot import chatbot_ui
+from Modules.chatbot import chatbot_ui
 from modules.image_gen import image_gen_ui
 from modules.file_reader import file_reader_ui
 from modules.settings import settings_ui

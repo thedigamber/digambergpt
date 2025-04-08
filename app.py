@@ -450,4 +450,25 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
 
 # --- OCR Processing using Google Cloud Vision API ---
 def extract_text_from_image(image_path):
-    client is vision.ImageAnnotatorClient.from_service_account_json('google_vision_key.json
+    client = vision.ImageAnnotatorClient.from_service_account_json('google_vision_key.json')
+    with io.open(image_path, 'rb') as image_file:
+        content = image_file.read()
+    image = vision.Image(content=content)
+    response = client.text_detection(image=image)
+    texts = response.text_annotations
+    if texts:
+        return texts[0].description
+    return ""
+
+# Process uploaded image
+if uploaded_image:
+    with st.spinner("Processing image..."):
+        image = Image.open(uploaded_image)
+        image_path = f"uploaded_image_{uuid.uuid4().hex}.png"
+        image.save(image_path)
+        text = extract_text_from_image(image_path)
+        st.text_area("Extracted Text", value=text, height=150)
+        if text.strip():
+            past_convo = "\n".join(
+                [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.messages]
+            )

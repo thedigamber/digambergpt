@@ -86,7 +86,7 @@ def generate_response(prompt):
     
     try:
         # Get full conversation history
-        chat_history = st.session_state.users_db[st.session_state.user][2]
+        chat_history = st.session_state.users_db[st.session_state.current_user][2]
         
         # Prepare messages for Gemini
         messages = []
@@ -158,11 +158,12 @@ def login_page():
         if st.form_submit_button("Login"):
             if username in st.session_state.users_db:
                 if st.session_state.users_db[username][0] == hash_password(password):
-                    st.session_state.user = username
+                    st.session_state.current_user = username
                     st.session_state.page = "chat"
-                    # Initialize chat from user's history
+                    
+                    # Initialize chat history if not exists
                     if "messages" not in st.session_state:
-                        st.session_state.messages = st.session_state.users_db[username][2]
+                        st.session_state.messages = st.session_state.users_db[username][2].copy()
                         if not st.session_state.messages:  # Add welcome message if empty
                             welcome_msg = {
                                 "role": "assistant",
@@ -171,6 +172,7 @@ def login_page():
                             }
                             st.session_state.messages.append(welcome_msg)
                             st.session_state.users_db[username][2].append(welcome_msg)
+                    
                     st.success("Login successful!")
                     time.sleep(1)
                     st.rerun()
@@ -251,6 +253,18 @@ def forgot_password_page():
 def chat_page():
     st.title("🤖 DigamberGPT with Sentiment Analysis")
     
+    # Initialize messages if not exists
+    if "messages" not in st.session_state:
+        st.session_state.messages = st.session_state.users_db[st.session_state.current_user][2].copy()
+        if not st.session_state.messages:  # Add welcome message if empty
+            welcome_msg = {
+                "role": "assistant",
+                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                "sentiment": None
+            }
+            st.session_state.messages.append(welcome_msg)
+            st.session_state.users_db[st.session_state.current_user][2].append(welcome_msg)
+    
     # Display chat messages
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -264,40 +278,44 @@ def chat_page():
                 elif sentiment["label"] == "NEG":
                     st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', unsafe_allow_html=True)
 
-    # Chat input
-    if prompt := st.chat_input("Your message..."):
-        # Add user message only once
-        user_msg = {"role": "user", "content": prompt}
-        st.session_state.messages.append(user_msg)
-        st.session_state.users_db[st.session_state.user][2].append(user_msg)
+    # Chat input - using a form to prevent duplicate messages
+    with st.form("chat_form"):
+        prompt = st.text_input("Your message...", key="chat_input")
+        submitted = st.form_submit_button("Send")
         
-        with st.spinner("💭 Generating response..."):
-            if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
-                img_path = generate_image(prompt)
-                if img_path:
-                    img_msg = {
+        if submitted and prompt:
+            # Add user message only once
+            user_msg = {"role": "user", "content": prompt}
+            st.session_state.messages.append(user_msg)
+            st.session_state.users_db[st.session_state.current_user][2].append(user_msg)
+            
+            with st.spinner("💭 Generating response..."):
+                if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
+                    img_path = generate_image(prompt)
+                    if img_path:
+                        img_msg = {
+                            "role": "assistant", 
+                            "content": f"![Generated Image]({img_path})",
+                            "sentiment": None
+                        }
+                        st.session_state.messages.append(img_msg)
+                        st.session_state.users_db[st.session_state.current_user][2].append(img_msg)
+                else:
+                    response, sentiment = generate_response(prompt)
+                    ai_msg = {
                         "role": "assistant", 
-                        "content": f"![Generated Image]({img_path})",
-                        "sentiment": None
+                        "content": response,
+                        "sentiment": sentiment
                     }
-                    st.session_state.messages.append(img_msg)
-                    st.session_state.users_db[st.session_state.user][2].append(img_msg)
-            else:
-                response, sentiment = generate_response(prompt)
-                ai_msg = {
-                    "role": "assistant", 
-                    "content": response,
-                    "sentiment": sentiment
-                }
-                st.session_state.messages.append(ai_msg)
-                st.session_state.users_db[st.session_state.user][2].append(ai_msg)
-        
-        # Force rerun to update UI
-        st.rerun()
+                    st.session_state.messages.append(ai_msg)
+                    st.session_state.users_db[st.session_state.current_user][2].append(ai_msg)
+            
+            # Force rerun to update UI
+            st.rerun()
 
     # Sidebar controls
     with st.sidebar:
-        st.header(f"👤 {st.session_state.user}")
+        st.header(f"👤 {st.session_state.current_user}")
         
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messages = [{
@@ -305,7 +323,7 @@ def chat_page():
                 "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
                 "sentiment": None
             }]
-            st.session_state.users_db[st.session_state.user][2] = st.session_state.messages.copy()
+            st.session_state.users_db[st.session_state.current_user][2] = st.session_state.messages.copy()
             st.rerun()
         
         st.markdown("---")
@@ -322,7 +340,7 @@ def chat_page():
             st.download_button(
                 "💾 Download as TXT",
                 chat_text,
-                file_name=f"digamber_chat_{st.session_state.user}.txt",
+                file_name=f"digamber_chat_{st.session_state.current_user}.txt",
                 use_container_width=True
             )
         
@@ -336,12 +354,14 @@ def chat_page():
         
         st.markdown("---")
         if st.button("🔒 Logout", use_container_width=True):
-            st.session_state.pop("user")
+            st.session_state.pop("current_user")
+            st.session_state.pop("messages", None)
             st.session_state.page = "login"
             st.rerun()
 
 # --- Main App Flow ---
 def main():
+    # Initialize session state variables
     if "page" not in st.session_state:
         st.session_state.page = "login"
     
@@ -367,7 +387,7 @@ def main():
     elif st.session_state.page == "forgot":
         forgot_password_page()
     elif st.session_state.page == "chat":
-        if "user" not in st.session_state:
+        if "current_user" not in st.session_state:
             st.session_state.page = "login"
             st.rerun()
         else:

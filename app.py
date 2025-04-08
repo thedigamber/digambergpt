@@ -17,6 +17,14 @@ import base64
 try:
     from transformers import pipeline
     transformers_installed = True
+
+    # Verify the availability of the model
+    try:
+        _ = pipeline("text-classification", model="unitary/toxic-bert")
+        model_available = True
+    except OSError as e:
+        st.error(f"Model 'unitary/toxic-bert' not available: {e}")
+        model_available = False
 except ImportError:
     transformers_installed = False
 
@@ -260,16 +268,16 @@ with tab1:
     ]
 
     # --- Disrespect Detection ---
-    if transformers_installed:
+    if transformers_installed and model_available:
         disrespect_detector = pipeline("text-classification", model="unitary/toxic-bert")
     else:
-        st.error("The 'transformers' library is not installed. Please install it to enable disrespect detection.")
+        st.error("The 'transformers' library is not installed or the model 'unitary/toxic-bert' is not available. Please install it to enable disrespect detection.")
 
     def is_abusive_or_disrespectful(text):
-        if transformers_installed:
+        if transformers_installed and model_available:
             result = disrespect_detector(text)[0]
             return result['label'] == 'toxic' and result['score'] > 0.7
-        return False  # Fallback if transformers is not installed
+        return False  # Fallback if transformers is not installed or model is not available
 
     # --- On Submit ---
     if query and query.strip():
@@ -352,4 +360,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-                )
+        )

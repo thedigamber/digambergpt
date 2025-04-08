@@ -1,4 +1,6 @@
 import streamlit as st
+import replicate
+import requests
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
@@ -82,6 +84,18 @@ def generate_image_stability(prompt, width=512, height=512):
             st.error("Image generation failed due to insufficient balance. Please check your Stability AI account.")
         else:
             st.error(f"Image generation failed: {str(e)}")
+        return None
+
+# --- Replicate Image Generation Function ---
+def generate_image(prompt, width, height):
+    try:
+        model = replicate.models.get("thedigamber/realistic-3d-nsfwgen")
+        output = model.predict(prompt=prompt, width=width, height=height, api_token="r8_AwYE2B6g8AQ3VrFW1TxPCkmiKga5IXu3L9bM0")
+        img_url = output["image"]
+        img = Image.open(io.BytesIO(requests.get(img_url).content))
+        return img
+    except Exception as e:
+        st.error(f"Image generation failed: {str(e)}")
         return None
 
 # --- Check if text is an image prompt ---
@@ -345,12 +359,14 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         os.remove(filename)
 
 # --- Image Generation ---
-st.subheader("Image Generator (Stability AI)")
+st.subheader("Image Generator (Replicate Model)")
 img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
+img_resolution = st.selectbox("Image Resolution:", ["512x512", "768x768", "1024x1024"], index=0)
 
 if st.button("Image Banao", key="generate_img_btn"):
     with st.spinner("Image ban rahi hai..."):
-        img = generate_image_stability(img_prompt)
+        width, height = map(int, img_resolution.split('x'))
+        img = generate_image(img_prompt, width, height)
         if img:
             st.image(img, caption="Tumhari Image")
             # Download link
@@ -376,4 +392,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+            )

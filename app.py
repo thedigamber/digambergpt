@@ -89,10 +89,19 @@ def generate_image_stability(prompt, width=512, height=512):
 # --- Replicate Image Generation Function ---
 def generate_image(prompt, width, height):
     try:
+        # Access the API token from secrets
+        api_token = st.secrets["replicate"]["api_token"]
+        
+        # Create a replicate model instance
         model = replicate.models.get("thedigamber/realistic-3d-nsfwgen")
-        output = model.predict(prompt=prompt, width=width, height=height, api_token="r8_AwYE2B6g8AQ3VrFW1TxPCkmiKga5IXu3L9bM0")
+        
+        # Generate the image using the replicate API
+        output = model.predict(prompt=prompt, width=width, height=height, api_token=api_token)
+        
+        # Fetch the image URL and load the image
         img_url = output["image"]
         img = Image.open(io.BytesIO(requests.get(img_url).content))
+        
         return img
     except Exception as e:
         st.error(f"Image generation failed: {str(e)}")
@@ -392,4 +401,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-            )
+)

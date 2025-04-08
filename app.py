@@ -278,40 +278,41 @@ def chat_page():
                 elif sentiment["label"] == "NEG":
                     st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', unsafe_allow_html=True)
 
-    # Chat input - using a form to prevent duplicate messages
-    with st.form("chat_form"):
-        prompt = st.text_input("Your message...", key="chat_input")
-        submitted = st.form_submit_button("Send")
+    # Original ChatGPT style chat input
+    if prompt := st.chat_input("Your message..."):
+        # Check if this is a duplicate message
+        if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["content"] == prompt:
+            st.warning("Duplicate message detected!")
+            st.stop()
         
-        if submitted and prompt:
-            # Add user message only once
-            user_msg = {"role": "user", "content": prompt}
-            st.session_state.messages.append(user_msg)
-            st.session_state.users_db[st.session_state.current_user][2].append(user_msg)
-            
-            with st.spinner("💭 Generating response..."):
-                if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
-                    img_path = generate_image(prompt)
-                    if img_path:
-                        img_msg = {
-                            "role": "assistant", 
-                            "content": f"![Generated Image]({img_path})",
-                            "sentiment": None
-                        }
-                        st.session_state.messages.append(img_msg)
-                        st.session_state.users_db[st.session_state.current_user][2].append(img_msg)
-                else:
-                    response, sentiment = generate_response(prompt)
-                    ai_msg = {
+        # Add user message
+        user_msg = {"role": "user", "content": prompt}
+        st.session_state.messages.append(user_msg)
+        st.session_state.users_db[st.session_state.current_user][2].append(user_msg)
+        
+        with st.spinner("💭 Generating response..."):
+            if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
+                img_path = generate_image(prompt)
+                if img_path:
+                    img_msg = {
                         "role": "assistant", 
-                        "content": response,
-                        "sentiment": sentiment
+                        "content": f"![Generated Image]({img_path})",
+                        "sentiment": None
                     }
-                    st.session_state.messages.append(ai_msg)
-                    st.session_state.users_db[st.session_state.current_user][2].append(ai_msg)
-            
-            # Force rerun to update UI
-            st.rerun()
+                    st.session_state.messages.append(img_msg)
+                    st.session_state.users_db[st.session_state.current_user][2].append(img_msg)
+            else:
+                response, sentiment = generate_response(prompt)
+                ai_msg = {
+                    "role": "assistant", 
+                    "content": response,
+                    "sentiment": sentiment
+                }
+                st.session_state.messages.append(ai_msg)
+                st.session_state.users_db[st.session_state.current_user][2].append(ai_msg)
+        
+        # Force rerun to update UI
+        st.rerun()
 
     # Sidebar controls
     with st.sidebar:

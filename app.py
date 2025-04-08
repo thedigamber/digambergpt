@@ -4,12 +4,12 @@ import io
 from PIL import Image
 import base64
 import re
+import time
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
 
 import google.generativeai as genai
-import time
 import random
 from PyPDF2 import PdfReader
 from gtts import gTTS
@@ -98,8 +98,8 @@ def generate_image_stability(prompt, width=512, height=512, style="Realistic"):
             st.error(f"Image generation failed: {str(e)}")
         return None
 
-# --- Hugging Face Image Generation Function ---
-def generate_image_huggingface(prompt, width, height, style="Realistic"):
+# --- Hugging Face Image Generation Function with Retry ---
+def generate_image_huggingface(prompt, width, height, style="Realistic", retries=3):
     try:
         # Access the API token from secrets
         api_token = st.secrets["huggingface"]["api_token"]
@@ -135,50 +135,17 @@ def generate_image_huggingface(prompt, width, height, style="Realistic"):
         
         return img
     except Exception as e:
-        st.error(f"Image generation failed: {str(e)}")
-        return None
+        if retries > 0:
+            st.warning(f"Image transformation failed: {str(e)}. Retrying...")
+            time.sleep(5)  # Wait for 5 seconds before retrying
+            return generate_image_huggingface(prompt, width, height, style, retries - 1)
+        else:
+            st.error(f"Image transformation failed after multiple retries: {str(e)}")
+            return None
 
 # --- Image Transformation Function ---
 def transform_image(image, style="Ghibli", width=512, height=512):
-    try:
-        # Access the API token from secrets
-        api_token = st.secrets["huggingface"]["api_token"]
-        headers = {
-            "Authorization": f"Bearer {api_token}",
-            "Content-Type": "application/json"
-        }
-
-        # Map styles to Hugging Face models
-        style_map = {
-            "Ghibli": "nitrosocke/Ghibli-Diffusion",
-            "Anime": "dreambooth-anime",
-            "Cyberpunk": "dreambooth-cyberpunk"
-        }
-
-        model = style_map.get(style, "nitrosocke/Ghibli-Diffusion")
-
-        # Prepare the image for the request
-        buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-
-        data = {
-            "inputs": img_str,
-            "options": {
-                "width": width,
-                "height": height
-            }
-        }
-        response = requests.post(f"https://api-inference.huggingface.co/models/{model}", headers=headers, json=data)
-        response.raise_for_status()
-        
-        img_data = response.content
-        img = Image.open(io.BytesIO(img_data))
-        
-        return img
-    except Exception as e:
-        st.error(f"Image transformation failed: {str(e)}")
-        return None
+    return generate_image_huggingface(prompt="", width=width, height=height, style=style)
 
 # --- Function to Parse User Input ---
 def parse_user_input(user_input):

@@ -1,3 +1,8 @@
+import sys
+import setuptools  # Provides distutils
+from distutils import util  # Explicit import
+
+# Standard imports
 import streamlit as st
 import requests
 import io
@@ -8,30 +13,41 @@ import time
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
+# Load environment variables first
 load_dotenv()
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
 
-import google.generativeai as genai
+# Conditional imports with error handling
+try:
+    import google.generativeai as genai
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model_fast = genai.GenerativeModel("gemini-1.0-pro")  # Updated model names
+    model_deep = genai.GenerativeModel("gemini-1.5-pro-latest")
+except ImportError as e:
+    st.error(f"Failed to load Google Generative AI: {str(e)}")
+    model_fast = None
+    model_deep = None
+
+try:
+    from transformers import pipeline
+    sentiment_pipeline = pipeline("sentiment-analysis", 
+                                model="distilbert-base-uncased-finetuned-sst-2-english")
+    sentiment_enabled = True
+except Exception as e:
+    sentiment_pipeline = None
+    sentiment_enabled = False
+    print("Sentiment analysis disabled:", e)
+
+# Required utility imports
 import random
 from PyPDF2 import PdfReader
 from gtts import gTTS
 import uuid
 import emoji
 
-# Try to import the transformers library
-try:
-    from transformers import pipeline
-    sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
-    sentiment_enabled = True
-except Exception as e:
-    sentiment_pipeline = None
-    sentiment_enabled = False
-    print("Sentiment model loading failed:", e)
-
-# Example usage
+# --- Utility Functions ---
 def detect_sentiment(text):
     if sentiment_enabled and sentiment_pipeline:
         try:
@@ -39,25 +55,13 @@ def detect_sentiment(text):
             return result["label"]
         except Exception as e:
             return "UNKNOWN"
-    else:
-        return "DISABLED"
+    return "DISABLED"
 
-# --- Gemini API Setup ---
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model_fast = genai.GenerativeModel("gemini-2.0-flash")
-model_deep = genai.GenerativeModel("gemini-1.5-pro")
-
-# --- Hugging Face Image Generation Function with Retry ---
 def generate_image_huggingface(prompt, width, height, style="Realistic", retries=3):
     try:
-        # Access the API token from environment variables
         api_token = os.getenv("HUGGINGFACE_API_TOKEN")
-        headers = {
-            "Authorization": f"Bearer {api_token}",
-            "Content-Type": "application/json"
-        }
-
-        # Map styles to Hugging Face models
+        headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
+        
         style_map = {
             "Anime": "nitrosocke/waifu-diffusion",
             "Realistic": "CompVis/stable-diffusion-v1-4",
@@ -66,33 +70,28 @@ def generate_image_huggingface(prompt, width, height, style="Realistic", retries
             "Fantasy": "nitrosocke/fantasy-diffusion",
             "Ghibli": "nitrosocke/Ghibli-Diffusion"
         }
-
+        
         model = style_map.get(style, "CompVis/stable-diffusion-v1-4")
-
-        data = {
-            "inputs": prompt,
-            "options": {
-                "width": width,
-                "height": height
-            }
-        }
-        response = requests.post(f"https://api-inference.huggingface.co/models/{model}", headers=headers, json=data)
+        data = {"inputs": prompt, "options": {"width": width, "height": height}}
+        
+        response = requests.post(
+            f"https://api-inference.huggingface.co/models/{model}", 
+            headers=headers, 
+            json=data
+        )
         response.raise_for_status()
         
-        img_data = response.content
-        img = Image.open(io.BytesIO(img_data))
+        img = Image.open(io.BytesIO(response.content))
         img_path = f"generated_image_{uuid.uuid4().hex}.png"
         img.save(img_path)
-        
         return img_path
+        
     except Exception as e:
         if retries > 0:
-            st.warning(f"Image transformation failed: {str(e)}. Retrying...")
-            time.sleep(5)  # Wait for 5 seconds before retrying
+            time.sleep(5)
             return generate_image_huggingface(prompt, width, height, style, retries - 1)
-        else:
-            st.error(f"Image transformation failed after multiple retries: {str(e)}")
-            return None
+        st.error(f"Image generation failed: {str(e)}")
+        return None
 
 # --- Image Transformation Function ---
 def transform_image(image, prompt, style="Ghibli", width=512, height=512):

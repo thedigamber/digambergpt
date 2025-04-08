@@ -9,30 +9,17 @@ import requests
 import io
 from PIL import Image
 import time
-import hashlib
 import uuid
 import os
 from PyPDF2 import PdfReader
 from gtts import gTTS
-import emoji
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Custom imports
+from auth.utils import get_user_db, save_user_db, hash_password
 
-# --- Authentication Setup ---
+# --- Initialize User Data ---
 if 'users_db' not in st.session_state:
-    st.session_state.users_db = {
-        # username: [hashed_password, email, chat_history]
-        "admin": [
-            "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", 
-            "admin@example.com",
-            []
-        ]  # password: "admin"
-    }
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    st.session_state.users_db = get_user_db()
 
 # --- Page Config ---
 st.set_page_config(
@@ -51,7 +38,7 @@ except Exception as e:
     st.error(f"⚠️ Failed to load Gemini: {str(e)}")
     model = None
 
-# --- Sentiment Analysis with Better Model ---
+# --- Sentiment Analysis ---
 try:
     from transformers import pipeline
     sentiment_pipeline = pipeline(
@@ -60,11 +47,9 @@ try:
         tokenizer="finiteautomata/bertweet-base-sentiment-analysis"
     )
     sentiment_enabled = True
-    st.success("✅ Sentiment analysis enabled")
 except Exception as e:
     sentiment_pipeline = None
     sentiment_enabled = False
-    st.warning(f"⚠️ Sentiment analysis disabled: {str(e)}")
 
 def analyze_sentiment(text):
     if not sentiment_enabled:
@@ -76,7 +61,6 @@ def analyze_sentiment(text):
             "score": round(result["score"], 3)
         }
     except Exception as e:
-        st.error(f"⚠️ Sentiment analysis failed: {str(e)}")
         return None
 
 # --- Core Functions ---
@@ -85,22 +69,19 @@ def generate_response(prompt):
         return "Error: AI model not loaded", None
     
     try:
-        # Get full conversation history
-        chat_history = st.session_state.users_db[st.session_state.current_user][2]
-        
-        # Prepare messages for Gemini
+        chat_history = st.session_state.users_db[st.session_state.current_user]["chat_history"]
         messages = []
-        for msg in chat_history[-20:]:  # Last 20 messages as context
+        
+        for msg in chat_history[-20:]:
             role = "user" if msg["role"] == "user" else "model"
             messages.append({"role": role, "parts": [msg["content"]]})
         
         messages.append({"role": "user", "parts": [prompt]})
         
-        # Generate response with full context
         response = model.generate_content(
             messages,
             generation_config={
-                "temperature": 0.9,  # More creative responses
+                "temperature": 0.9,
                 "top_p": 1.0,
                 "max_output_tokens": 4096
             },
@@ -139,10 +120,7 @@ def generate_image(prompt):
             img_path = f"generated_{uuid.uuid4().hex}.png"
             img.save(img_path)
             return img_path
-        else:
-            st.error(f"⚠️ Image generation failed with status: {response.status_code}")
-            return None
-            
+        return None
     except Exception as e:
         st.error(f"⚠️ Image generation failed: {str(e)}")
         return None
@@ -157,21 +135,22 @@ def login_page():
         
         if st.form_submit_button("Login"):
             if username in st.session_state.users_db:
-                if st.session_state.users_db[username][0] == hash_password(password):
+                if st.session_state.users_db[username]["password"] == hash_password(password):
                     st.session_state.current_user = username
                     st.session_state.page = "chat"
                     
-                    # Initialize chat history if not exists
+                    # Initialize chat history
                     if "messages" not in st.session_state:
-                        st.session_state.messages = st.session_state.users_db[username][2].copy()
-                        if not st.session_state.messages:  # Add welcome message if empty
+                        st.session_state.messages = st.session_state.users_db[username]["chat_history"].copy()
+                        if not st.session_state.messages:
                             welcome_msg = {
                                 "role": "assistant",
                                 "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
                                 "sentiment": None
                             }
                             st.session_state.messages.append(welcome_msg)
-                            st.session_state.users_db[username][2].append(welcome_msg)
+                            st.session_state.users_db[username]["chat_history"].append(welcome_msg)
+                            save_user_db(st.session_state.users_db)
                     
                     st.success("Login successful!")
                     time.sleep(1)
@@ -210,15 +189,19 @@ def signup_page():
             elif len(password) < 8:
                 st.error("Password too short (min 8 chars)!")
             else:
-                st.session_state.users_db[username] = [
-                    hash_password(password), 
-                    email,
-                    []  # Initialize empty chat history
-                ]
-                st.success("Account created! Please login")
-                time.sleep(1)
-                st.session_state.page = "login"
-                st.rerun()
+                st.session_state.users_db[username] = {
+                    "password": hash_password(password),
+                    "email": email,
+                    "chat_history": []
+                }
+                
+                if save_user_db(st.session_state.users_db):
+                    st.success("Account created! Please login")
+                    time.sleep(1)
+                    st.session_state.page = "login"
+                    st.rerun()
+                else:
+                    st.error("Failed to save account. Please try again.")
 
     if st.button("Back to Login"):
         st.session_state.page = "login"
@@ -239,11 +222,14 @@ def forgot_password_page():
         elif len(new_password) < 8:
             st.error("Password too short (min 8 chars)!")
         else:
-            st.session_state.users_db[username][0] = hash_password(new_password)
-            st.success("Password updated! Please login")
-            time.sleep(1)
-            st.session_state.page = "login"
-            st.rerun()
+            st.session_state.users_db[username]["password"] = hash_password(new_password)
+            if save_user_db(st.session_state.users_db):
+                st.success("Password updated! Please login")
+                time.sleep(1)
+                st.session_state.page = "login"
+                st.rerun()
+            else:
+                st.error("Failed to update password. Please try again.")
 
     if st.button("Back to Login"):
         st.session_state.page = "login"
@@ -253,23 +239,24 @@ def forgot_password_page():
 def chat_page():
     st.title("🤖 DigamberGPT with Sentiment Analysis")
     
-    # Initialize messages if not exists
+    # Initialize messages
     if "messages" not in st.session_state:
-        st.session_state.messages = st.session_state.users_db[st.session_state.current_user][2].copy()
-        if not st.session_state.messages:  # Add welcome message if empty
+        st.session_state.messages = st.session_state.users_db[st.session_state.current_user]["chat_history"].copy()
+        if not st.session_state.messages:
             welcome_msg = {
                 "role": "assistant",
                 "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
                 "sentiment": None
             }
             st.session_state.messages.append(welcome_msg)
-            st.session_state.users_db[st.session_state.current_user][2].append(welcome_msg)
+            st.session_state.users_db[st.session_state.current_user]["chat_history"].append(welcome_msg)
+            save_user_db(st.session_state.users_db)
     
-    # Display chat messages
+    # Display messages
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
-            if "sentiment" in msg and msg["sentiment"]:
+            if msg.get("sentiment"):
                 sentiment = msg["sentiment"]
                 if sentiment["label"] == "POS":
                     st.markdown(f'<span class="sentiment-positive">😊 Positive ({sentiment["score"]})</span>', unsafe_allow_html=True)
@@ -278,17 +265,17 @@ def chat_page():
                 elif sentiment["label"] == "NEG":
                     st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', unsafe_allow_html=True)
 
-    # Original ChatGPT style chat input
+    # Chat input
     if prompt := st.chat_input("Your message..."):
-        # Check if this is a duplicate message
-        if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["content"] == prompt:
+        # Check for duplicate message
+        if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:
             st.warning("Duplicate message detected!")
             st.stop()
         
         # Add user message
         user_msg = {"role": "user", "content": prompt}
         st.session_state.messages.append(user_msg)
-        st.session_state.users_db[st.session_state.current_user][2].append(user_msg)
+        st.session_state.users_db[st.session_state.current_user]["chat_history"].append(user_msg)
         
         with st.spinner("💭 Generating response..."):
             if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
@@ -300,7 +287,7 @@ def chat_page():
                         "sentiment": None
                     }
                     st.session_state.messages.append(img_msg)
-                    st.session_state.users_db[st.session_state.current_user][2].append(img_msg)
+                    st.session_state.users_db[st.session_state.current_user]["chat_history"].append(img_msg)
             else:
                 response, sentiment = generate_response(prompt)
                 ai_msg = {
@@ -309,12 +296,14 @@ def chat_page():
                     "sentiment": sentiment
                 }
                 st.session_state.messages.append(ai_msg)
-                st.session_state.users_db[st.session_state.current_user][2].append(ai_msg)
+                st.session_state.users_db[st.session_state.current_user]["chat_history"].append(ai_msg)
+            
+            # Save updated chat history
+            save_user_db(st.session_state.users_db)
         
-        # Force rerun to update UI
         st.rerun()
 
-    # Sidebar controls
+    # Sidebar
     with st.sidebar:
         st.header(f"👤 {st.session_state.current_user}")
         
@@ -324,15 +313,16 @@ def chat_page():
                 "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
                 "sentiment": None
             }]
-            st.session_state.users_db[st.session_state.current_user][2] = st.session_state.messages.copy()
+            st.session_state.users_db[st.session_state.current_user]["chat_history"] = st.session_state.messages.copy()
+            save_user_db(st.session_state.users_db)
             st.rerun()
         
         st.markdown("---")
         st.subheader("🎨 Image Generation Tips")
         st.markdown("""
-        - Be specific in your description
+        - Be specific in descriptions
         - Include style preferences
-        - Example: "A futuristic city at night, cyberpunk style, 4K resolution"
+        - Example: "A futuristic city at night, cyberpunk style"
         """)
         
         st.markdown("---")
@@ -341,17 +331,8 @@ def chat_page():
             st.download_button(
                 "💾 Download as TXT",
                 chat_text,
-                file_name=f"digamber_chat_{st.session_state.current_user}.txt",
-                use_container_width=True
+                file_name=f"digamber_chat_{st.session_state.current_user}.txt"
             )
-        
-        st.markdown("---")
-        tts_enabled = st.toggle("🔊 Enable Text-to-Speech")
-        if tts_enabled and st.session_state.messages:
-            last_msg = st.session_state.messages[-1]["content"]
-            tts = gTTS(text=last_msg, lang='hi' if any(char in last_msg for char in 'अआइईउऊऋएऐओऔकखगघचछजझटठडढतथदधनपफबभमयरलवशषसह') else 'en')
-            tts.save("temp_audio.mp3")
-            st.audio("temp_audio.mp3")
         
         st.markdown("---")
         if st.button("🔒 Logout", use_container_width=True):
@@ -360,9 +341,8 @@ def chat_page():
             st.session_state.page = "login"
             st.rerun()
 
-# --- Main App Flow ---
+# --- Main App ---
 def main():
-    # Initialize session state variables
     if "page" not in st.session_state:
         st.session_state.page = "login"
     
@@ -371,9 +351,6 @@ def main():
         <style>
         .stTextInput input {color: #4F8BF9;}
         .stButton button {background-color: #4F8BF9; color: white;}
-        .chat-message {padding: 10px; border-radius: 10px; margin: 5px 0;}
-        .user-message {background-color: #2a2a2a; color: white;}
-        .bot-message {background-color: #1a1a1a; color: #39ff14;}
         .sentiment-positive {color: green;}
         .sentiment-neutral {color: blue;}
         .sentiment-negative {color: red;}
@@ -394,7 +371,7 @@ def main():
         else:
             chat_page()
 
-    # APK Download Section
+    # APK Download
     st.markdown("---")
     st.markdown("### 📱 Mobile App")
     st.markdown("""

@@ -78,7 +78,10 @@ def generate_image_stability(prompt, width=512, height=512):
                     return img
 
     except Exception as e:
-        st.error(f"Image generation failed: {str(e)}")
+        if "RESOURCE_EXHAUSTED" in str(e):
+            st.error("Image generation failed due to insufficient balance. Please check your Stability AI account.")
+        else:
+            st.error(f"Image generation failed: {str(e)}")
         return None
 
 # --- Check if text is an image prompt ---
@@ -238,7 +241,7 @@ uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
 if uploaded_file:
     if uploaded_file.type == "application/pdf":
         pdf_reader = PdfReader(uploaded_file)
-        text = "".join([page.extract_text() for page in pdf_reader.pages])
+        text = "".join([page.extract_text() for page in pdf_reader pages])
         st.success("PDF content loaded!")
         st.text_area("PDF Content", value=text, height=150)
     elif uploaded_file.type == "text/plain":
@@ -373,4 +376,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+)

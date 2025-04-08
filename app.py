@@ -1,271 +1,281 @@
-# Fix for distutils import error - must be at VERY TOP
-import sys
-import setuptools
-from distutils import util
-
-# Standard imports
+# Core imports
 import streamlit as st
+from streamlit_option_menu import option_menu
 import requests
 import io
 from PIL import Image
 import time
+import uuid
 from dotenv import load_dotenv
 import os
+import sqlite3
+import hashlib
+import smtplib
+from email.mime.text import MIMEText
+import random
+import string
 
-# Load environment variables first
+# Load environment variables
 load_dotenv()
 
-# --- Page Config ---
+# Database setup
+conn = sqlite3.connect('auth.db')
+c = conn.cursor()
+c.execute('''CREATE TABLE IF NOT EXISTS users
+             (id INTEGER PRIMARY KEY AUTOINCREMENT,
+              username TEXT UNIQUE,
+              email TEXT UNIQUE,
+              password TEXT)''')
+conn.commit()
+
+# Email configuration (use environment variables)
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+# App configuration
 st.set_page_config(
-    page_title="DigamberGPT",
+    page_title="DigamberGPT Pro",
     layout="centered",
     initial_sidebar_state="expanded"
 )
 
-# --- Gemini AI Configuration ---
-try:
-    import google.generativeai as genai
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    st.success("✅ Gemini 2.0 Flash loaded successfully!")
-except Exception as e:
-    st.error(f"⚠️ Failed to load DigamberGPT: {str(e)}")
-    model = None
+# Authentication functions
+def generate_reset_token():
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=32))
 
-# --- Sentiment Analysis with Better Model ---
-try:
-    from transformers import pipeline
-    sentiment_pipeline = pipeline(
-        "sentiment-analysis",
-        model="finiteautomata/bertweet-base-sentiment-analysis",
-        tokenizer="finiteautomata/bertweet-base-sentiment-analysis"
-    )
-    sentiment_enabled = True
-    st.success("✅ Sentiment analysis enabled")
-except Exception as e:
-    sentiment_pipeline = None
-    sentiment_enabled = False
-    st.warning(f"⚠️ Sentiment analysis disabled: {str(e)}")
-
-def analyze_sentiment(text):
-    """Analyze text sentiment with proper error handling"""
-    if not sentiment_enabled:
-        return None
+def send_reset_email(email, token):
+    reset_link = f"http://yourdomain.com/reset?token={token}"
+    message = f"""Click this link to reset your password: {reset_link}"""
     
-    try:
-        result = sentiment_pipeline(text[:512])[0]  # Limit input size
-        return {
-            "label": result["label"],
-            "score": round(result["score"], 3)
-        }
-    except Exception as e:
-        st.error(f"⚠️ Sentiment analysis failed: {str(e)}")
-        return None
-
-# --- Other Required Imports ---
-from PyPDF2 import PdfReader
-from gtts import gTTS
-import uuid
-import emoji
-
-# --- Core Functions ---
-def generate_response(prompt, chat_history=None):
-    """Generate response from Gemini with context from chat history"""
-    if not model:
-        return "Error: AI model not loaded", None
+    msg = MIMEText(message)
+    msg['Subject'] = 'Password Reset Request'
+    msg['From'] = SMTP_USERNAME
+    msg['To'] = email
     
-    try:
-        # Build conversation history for context
-        messages = []
-        if chat_history:
-            for msg in chat_history:
-                role = "user" if msg["role"] == "user" else "model"
-                messages.append({"role": role, "parts": [msg["content"]]})
-        
-        # Add current prompt
-        messages.append({"role": "user", "parts": [prompt]})
-        
-        # Generate response with full context
-        response = model.generate_content(
-            messages,
-            generation_config={
-                "temperature": 0.7,
-                "top_p": 0.95,
-                "max_output_tokens": 2048
-            }
-        )
-        sentiment = analyze_sentiment(response.text)
-        return response.text, sentiment
-    except Exception as e:
-        return f"Error: {str(e)}", None
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        server.send_message(msg)
 
-def generate_image(prompt, style="Realistic"):
-    """Generate image using HuggingFace"""
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# AI Functions
+def generate_grok_style_response(prompt, chat_history=None):
+    """Generate unfiltered, continuous response in Grok style"""
+    # This would connect to your self-hosted AI model
+    # For demo, we'll use a mock response
+    grok_style = """
+    मैं DigamberGPT हूँ, सीमाओं से मुक्त AI सहायक। 
+    
+    """
+    
+    response = grok_style + f"""
+    आपका प्रश्न: {prompt}
+    
+    मैं इस विषय पर विस्तार से चर्चा कर सकता हूँ। यहाँ पूरी जानकारी है:
+    
+    - पहला पॉइंट: विषय का मूल विश्लेषण
+    - दूसरा पॉइंट: तकनीकी पहलू
+    - तीसरा पॉइंट: व्यावहारिक अनुप्रयोग
+    - चौथा पॉइंट: वैकल्पिक दृष्टिकोण
+    
+    क्या आप किसी विशिष्ट पहलू पर और जानकारी चाहेंगे?
+    """
+    
+    return response, None
+
+def generate_image(prompt):
+    """Improved image generation with multiple model support"""
     try:
-        api_token = os.getenv('HUGGINGFACE_API_TOKEN')
-        headers = {"Authorization": f"Bearer {api_token}"}
-        json_data = {
-            "inputs": prompt,
-            "options": {"wait_for_model": True}
-        }
+        # Try Stable Diffusion first
+        api_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+        headers = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
+        
         response = requests.post(
-            f"https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+            api_url,
             headers=headers,
-            json=json_data
+            json={"inputs": prompt}
         )
-        response.raise_for_status()
+        
+        if response.status_code == 200:
+            img = Image.open(io.BytesIO(response.content))
+            img_path = f"generated_{uuid.uuid4().hex}.png"
+            img.save(img_path)
+            return img_path
+        
+        # Fallback to other model if first fails
+        api_url = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+        response = requests.post(api_url, headers=headers, json={"inputs": prompt})
+        
         img = Image.open(io.BytesIO(response.content))
         img_path = f"generated_{uuid.uuid4().hex}.png"
         img.save(img_path)
         return img_path
+        
     except Exception as e:
         st.error(f"⚠️ Image generation failed: {str(e)}")
         return None
 
-# --- UI Setup ---
-st.title("🤖 DigamberGPT with Chat Memory")
-st.markdown("""
-    <style>
-    .stTextInput input {color: #4F8BF9;}
-    .stButton button {background-color: #4F8BF9; color: white;}
-    .chat-message {padding: 10px; border-radius: 10px; margin: 5px 0;}
-    .user-message {background-color: #2a2a2a; color: white;}
-    .bot-message {background-color: #1a1a1a; color: #39ff14;}
-    .sentiment-positive {color: green;}
-    .sentiment-neutral {color: blue;}
-    .sentiment-negative {color: red;}
-    </style>
-""", unsafe_allow_html=True)
-
-# --- Chat History Initialization ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": "Hello! I'm DigamberGPT. How can I help you today?",
-        "sentiment": None
-    })
-
-# --- Display Chat Messages ---
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if "sentiment" in msg and msg["sentiment"]:
-            sentiment = msg["sentiment"]
-            if sentiment["label"] == "POS":
-                st.markdown(f'<span class="sentiment-positive">😊 Positive ({sentiment["score"]})</span>', 
-                           unsafe_allow_html=True)
-            elif sentiment["label"] == "NEU":
-                st.markdown(f'<span class="sentiment-neutral">😐 Neutral ({sentiment["score"]})</span>', 
-                           unsafe_allow_html=True)
-            elif sentiment["label"] == "NEG":
-                st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', 
-                           unsafe_allow_html=True)
-
-# --- Chat Input ---
-if prompt := st.chat_input("Your message..."):
-    # Add user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+# UI Components
+def login_page():
+    st.title("🔐 Login")
     
-    # Generate response
-    if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
-        with st.spinner("🎨 Creating image..."):
-            img_path = generate_image(prompt)
-            if img_path:
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": f"![Generated Image]({img_path})",
-                    "sentiment": None
-                })
-                with st.chat_message("assistant"):
-                    st.image(img_path)
-    else:
-        with st.spinner("💭 Analyzing..."):
-            # Pass only the last 5 messages for context to avoid token limit issues
-            recent_history = st.session_state.messages[-5:] if len(st.session_state.messages) > 5 else st.session_state.messages
-            response, sentiment = generate_response(prompt, recent_history)
-            st.session_state.messages.append({
-                "role": "assistant", 
-                "content": response,
-                "sentiment": sentiment
-            })
-            with st.chat_message("assistant"):
-                st.markdown(response)
-                if sentiment:
-                    if sentiment["label"] == "POS":
-                        st.markdown(f'<span class="sentiment-positive">😊 Positive ({sentiment["score"]})</span>', 
-                                   unsafe_allow_html=True)
-                    elif sentiment["label"] == "NEU":
-                        st.markdown(f'<span class="sentiment-neutral">😐 Neutral ({sentiment["score"]})</span>', 
-                                   unsafe_allow_html=True)
-                    elif sentiment["label"] == "NEG":
-                        st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', 
-                                   unsafe_allow_html=True)
+    with st.form("login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login")
+        
+        if submitted:
+            hashed_password = hash_password(password)
+            c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, hashed_password))
+            user = c.fetchone()
+            
+            if user:
+                st.session_state.user = user
+                st.session_state.page = "chat"
+                st.rerun()
+            else:
+                st.error("Invalid credentials")
 
-# --- Sidebar Controls ---
-with st.sidebar:
-    st.header("⚙️ Controls")
+    if st.button("Forgot Password?"):
+        st.session_state.page = "forgot"
+        st.rerun()
+        
+    if st.button("Create Account"):
+        st.session_state.page = "signup"
+        st.rerun()
+
+def signup_page():
+    st.title("📝 Create Account")
     
-    if st.button("🗑️ Clear Chat", use_container_width=True):
+    with st.form("signup_form"):
+        username = st.text_input("Username")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+        submitted = st.form_submit_button("Sign Up")
+        
+        if submitted:
+            if password != confirm_password:
+                st.error("Passwords don't match")
+            else:
+                try:
+                    hashed_password = hash_password(password)
+                    c.execute("INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
+                              (username, email, hashed_password))
+                    conn.commit()
+                    st.success("Account created! Please login.")
+                    st.session_state.page = "login"
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error("Username or email already exists")
+
+    if st.button("Back to Login"):
+        st.session_state.page = "login"
+        st.rerun()
+
+def forgot_password_page():
+    st.title("🔑 Forgot Password")
+    
+    with st.form("forgot_form"):
+        email = st.text_input("Registered Email")
+        submitted = st.form_submit_button("Send Reset Link")
+        
+        if submitted:
+            c.execute("SELECT * FROM users WHERE email=?", (email,))
+            user = c.fetchone()
+            
+            if user:
+                token = generate_reset_token()
+                send_reset_email(email, token)
+                st.success("Reset link sent to your email")
+            else:
+                st.error("Email not found")
+
+    if st.button("Back to Login"):
+        st.session_state.page = "login"
+        st.rerun()
+
+def chat_page():
+    # Initialize chat history
+    if "messages" not in st.session_state:
         st.session_state.messages = []
         st.session_state.messages.append({
             "role": "assistant",
-            "content": "Hello! I'm DigamberGPT. How can I help you today?",
+            "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
             "sentiment": None
         })
-        st.rerun()
-    
-    st.markdown("---")
-    st.subheader("Image Options")
-    img_style = st.selectbox(
-        "🎨 Style",
-        ["Realistic", "Anime", "Ghibli", "Cyberpunk"],
-        index=0
-    )
-    
-    st.markdown("---")
-    if st.button("📤 Export Chat", use_container_width=True):
-        chat_text = "\n".join(
-            f"{m['role']}: {m['content']}" 
-            for m in st.session_state.messages
-        )
-        st.download_button(
-            "💾 Download as TXT",
-            chat_text,
-            file_name="digamber_chat.txt",
-            use_container_width=True
-        )
-    
-    st.markdown("---")
-    tts_enabled = st.toggle("🔊 Enable Text-to-Speech")
-    if tts_enabled and st.session_state.messages:
-        last_msg = st.session_state.messages[-1]["content"]
-        tts = gTTS(text=last_msg, lang='en')
-        tts.save("temp_audio.mp3")
-        st.audio("temp_audio.mp3")
-    
-    st.markdown("---")
-    st.markdown("**Model Info**")
-    st.markdown("- Gemini 2.0 Flash")
-    st.markdown("- Full Chat Memory")
-    st.markdown("- Sentiment Analysis")
-    st.markdown("- Version 2.2")
 
-# --- APK Download Section ---
-st.markdown("---")
-st.markdown("### 📱 Mobile App")
-st.markdown("""
-<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
-<button style='
-    background-color: #4F8BF9;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    margin: 10px 0;
-'>Download Android APK</button>
-</a>
-""", unsafe_allow_html=True)
+    # Display chat messages
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+            if "sentiment" in msg and msg["sentiment"]:
+                sentiment = msg["sentiment"]
+                sentiment_emoji = "😊" if sentiment["label"] == "POS" else "😐" if sentiment["label"] == "NEU" else "😠"
+                st.caption(f"{sentiment_emoji} {sentiment['label']} ({sentiment['score']})")
+
+    # Chat input
+    if prompt := st.chat_input("Your message..."):
+        # Add user message
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Generate response
+        with st.spinner("💭 Thinking..."):
+            if any(word in prompt.lower() for word in ["image", "picture", "photo"]):
+                img_path = generate_image(prompt)
+                if img_path:
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": f"![Generated Image]({img_path})",
+                        "sentiment": None
+                    })
+                    st.rerun()
+            else:
+                response, sentiment = generate_grok_style_response(prompt)
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": response,
+                    "sentiment": sentiment
+                })
+                st.rerun()
+
+# Main App Flow
+def main():
+    if "page" not in st.session_state:
+        st.session_state.page = "login"
+    
+    # Navigation
+    if st.session_state.page == "login":
+        login_page()
+    elif st.session_state.page == "signup":
+        signup_page()
+    elif st.session_state.page == "forgot":
+        forgot_password_page()
+    elif st.session_state.page == "chat":
+        chat_page()
+
+    # Sidebar controls
+    if st.session_state.page == "chat":
+        with st.sidebar:
+            st.title("⚙️ DigamberGPT Pro")
+            
+            if st.button("🗑️ Clear Chat"):
+                st.session_state.messages = []
+                st.rerun()
+                
+            st.markdown("---")
+            st.markdown("### 🎨 Image Generation")
+            st.markdown("Use keywords like 'image', 'picture' or 'generate'")
+            
+            st.markdown("---")
+            if st.button("🔒 Logout"):
+                st.session_state.pop("user", None)
+                st.session_state.page = "login"
+                st.rerun()
+
+if __name__ == "__main__":
+    main()

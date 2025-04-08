@@ -10,7 +10,6 @@ import io
 from PIL import Image
 import time
 import uuid
-import os
 from PyPDF2 import PdfReader
 from gtts import gTTS
 
@@ -31,7 +30,7 @@ st.set_page_config(
 # --- Gemini AI Configuration ---
 try:
     import google.generativeai as genai
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
     model = genai.GenerativeModel("gemini-2.0-flash")
     st.success("✅ Gemini 2.0 Flash loaded successfully!")
 except Exception as e:
@@ -47,9 +46,11 @@ try:
         tokenizer="finiteautomata/bertweet-base-sentiment-analysis"
     )
     sentiment_enabled = True
+    st.success("✅ Sentiment analysis enabled")
 except Exception as e:
     sentiment_pipeline = None
     sentiment_enabled = False
+    st.warning(f"⚠️ Sentiment analysis disabled: {str(e)}")
 
 def analyze_sentiment(text):
     if not sentiment_enabled:
@@ -61,6 +62,7 @@ def analyze_sentiment(text):
             "score": round(result["score"], 3)
         }
     except Exception as e:
+        st.error(f"⚠️ Sentiment analysis failed: {str(e)}")
         return None
 
 # --- Core Functions ---
@@ -103,7 +105,7 @@ def generate_image(prompt):
     try:
         response = requests.post(
             "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-            headers={"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"},
+            headers={"Authorization": f"Bearer {st.secrets['huggingface']['api_token']}"},
             json={
                 "inputs": prompt,
                 "options": {
@@ -120,7 +122,10 @@ def generate_image(prompt):
             img_path = f"generated_{uuid.uuid4().hex}.png"
             img.save(img_path)
             return img_path
-        return None
+        else:
+            st.error(f"⚠️ Image generation failed with status: {response.status_code}")
+            return None
+            
     except Exception as e:
         st.error(f"⚠️ Image generation failed: {str(e)}")
         return None

@@ -197,7 +197,7 @@ def parse_user_input(user_input):
 
 # --- Check if text is an image prompt ---
 def is_image_prompt(text):
-    keywords = ["image", "photo", "draw", "picture", "painting"]
+    keywords = ["image", "photo", "draw", "picture", "painting", "generate image", "billi ki photo", "generate image of a cat"]
     return any(keyword in text.lower() for keyword in keywords)
 
 st.markdown("""
@@ -401,6 +401,10 @@ st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
 query = st.chat_input("Message DigamberGPT")
 st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Ensure chatbot responds to the first input ---
+if "first_input" not in st.session_state:
+    st.session_state.first_input = True
+
 # --- Typing Effect ---
 def display_typing_effect(text):
     message = st.empty()
@@ -445,7 +449,7 @@ if query and query.strip():
                 st.session_state.chat_history[selected_chat].append(("image", transformed_img))
                 st.rerun()
     else:
-        if "generate image" in query.lower() or "image generate kar" in query.lower():
+        if is_image_prompt(query):
             img = generate_image_stability(query, width, height, style)
             if img:
                 st.session_state.chat_history[selected_chat].append(("image", img))
@@ -475,6 +479,10 @@ if query and query.strip():
             st.session_state.chat_history[selected_chat].append(("assistant", reply))
         st.rerun()
 
+    # Ensuring chatbot responds to the first input
+    if st.session_state.first_input:
+        st.session_state.first_input = False
+
 # --- Voice Output ---
 voice_toggle = st.checkbox("Speak Response (Hindi)")
 if voice_toggle and current_chat in st.session_state.chat_history and st.session_state.chat_history[current_chat]:
@@ -485,6 +493,4 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         tts.save(filename)
         audio_file = open(filename, "rb")
         audio_bytes = audio_file.read()
-        st.audio(audio_bytes, format="audio/mp3")
-        audio_file.close()
-        os.remove(filename)
+        st.audio(audio_bytes

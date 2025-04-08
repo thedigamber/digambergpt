@@ -24,13 +24,20 @@ try:
 
     # Verify the availability of the alternative model
     try:
-        _ = pipeline("sentiment-analysis")
+        sentiment_pipeline = pipeline("sentiment-analysis")
         model_available = True
     except OSError as e:
         st.error(f"Sentiment analysis model not available: {e}")
         model_available = False
 except ImportError:
     transformers_installed = False
+
+# Local fallback sentiment analysis function
+def local_sentiment_analysis(text):
+    negative_words = ["bad", "terrible", "awful", "hate", "worst"]
+    positive_words = ["good", "great", "excellent", "love", "best"]
+    score = sum(word in text.lower() for word in positive_words) - sum(word in text.lower() for word in negative_words)
+    return {"label": "NEGATIVE" if score < 0 else "POSITIVE", "score": abs(score)}
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -119,13 +126,15 @@ st.markdown("""
     }
     </style>
     <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // Auto-scroll to the bottom of the chat container
-        const chatContainer = parent.document.querySelector('.chat-container');
-        if (chatContainer) {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+    async function loadComponent() {
+        try {
+            const module = await import('/path/to/component.js');
+            module.default();
+        } catch (error) {
+            console.error('Error loading component:', error);
         }
-    });
+    }
+    document.addEventListener("DOMContentLoaded", loadComponent);
     </script>
 """, unsafe_allow_html=True)
 
@@ -271,15 +280,18 @@ with tab1:
 
     # --- Disrespect Detection ---
     if transformers_installed and model_available:
-        disrespect_detector = pipeline("sentiment-analysis")
+        disrespect_detector = sentiment_pipeline
     else:
         st.error("The 'transformers' library is not installed or the sentiment analysis model is not available. Please install it to enable disrespect detection.")
+        disrespect_detector = local_sentiment_analysis
 
     def is_abusive_or_disrespectful(text):
         if transformers_installed and model_available:
             result = disrespect_detector(text)[0]
             return result['label'] == 'NEGATIVE' and result['score'] > 0.7
-        return False  # Fallback if transformers is not installed or model is not available
+        else:
+            result = disrespect_detector(text)
+            return result['label'] == 'NEGATIVE' and result['score'] > 0.7
 
     # --- On Submit ---
     if query and query.strip():
@@ -362,4 +374,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+            )

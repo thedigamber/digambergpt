@@ -69,14 +69,25 @@ import uuid
 import emoji
 
 # --- Core Functions ---
-def generate_response(prompt):
-    """Generate response from Gemini with sentiment analysis"""
+def generate_response(prompt, chat_history=None):
+    """Generate response from Gemini with context from chat history"""
     if not model:
         return "Error: AI model not loaded", None
     
     try:
+        # Build conversation history for context
+        messages = []
+        if chat_history:
+            for msg in chat_history:
+                role = "user" if msg["role"] == "user" else "model"
+                messages.append({"role": role, "parts": [msg["content"]]})
+        
+        # Add current prompt
+        messages.append({"role": "user", "parts": [prompt]})
+        
+        # Generate response with full context
         response = model.generate_content(
-            prompt,
+            messages,
             generation_config={
                 "temperature": 0.7,
                 "top_p": 0.95,
@@ -112,7 +123,7 @@ def generate_image(prompt, style="Realistic"):
         return None
 
 # --- UI Setup ---
-st.title("🤖 DigamberGPT with Sentiment Analysis")
+st.title("🤖 DigamberGPT with Chat Memory")
 st.markdown("""
     <style>
     .stTextInput input {color: #4F8BF9;}
@@ -129,6 +140,11 @@ st.markdown("""
 # --- Chat History Initialization ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": "Hello! I'm DigamberGPT. How can I help you today?",
+        "sentiment": None
+    })
 
 # --- Display Chat Messages ---
 for msg in st.session_state.messages:
@@ -160,13 +176,16 @@ if prompt := st.chat_input("Your message..."):
             if img_path:
                 st.session_state.messages.append({
                     "role": "assistant", 
-                    "content": f"![Generated Image]({img_path})"
+                    "content": f"![Generated Image]({img_path})",
+                    "sentiment": None
                 })
                 with st.chat_message("assistant"):
                     st.image(img_path)
     else:
         with st.spinner("💭 Analyzing..."):
-            response, sentiment = generate_response(prompt)
+            # Pass only the last 5 messages for context to avoid token limit issues
+            recent_history = st.session_state.messages[-5:] if len(st.session_state.messages) > 5 else st.session_state.messages
+            response, sentiment = generate_response(prompt, recent_history)
             st.session_state.messages.append({
                 "role": "assistant", 
                 "content": response,
@@ -191,6 +210,11 @@ with st.sidebar:
     
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": "Hello! I'm DigamberGPT. How can I help you today?",
+            "sentiment": None
+        })
         st.rerun()
     
     st.markdown("---")
@@ -225,8 +249,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**Model Info**")
     st.markdown("- Gemini 2.0 Flash")
+    st.markdown("- Full Chat Memory")
     st.markdown("- Sentiment Analysis")
-    st.markdown("- Version 2.1")
+    st.markdown("- Version 2.2")
 
 # --- APK Download Section ---
 st.markdown("---")

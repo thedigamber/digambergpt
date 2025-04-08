@@ -12,7 +12,13 @@ from stability_sdk import client
 import io
 from PIL import Image
 import base64
-from transformers import pipeline
+
+# Try to import the transformers library
+try:
+    from transformers import pipeline
+    transformers_installed = True
+except ImportError:
+    transformers_installed = False
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -254,11 +260,16 @@ with tab1:
     ]
 
     # --- Disrespect Detection ---
-    disrespect_detector = pipeline("text-classification", model="unitary/toxic-bert")
+    if transformers_installed:
+        disrespect_detector = pipeline("text-classification", model="unitary/toxic-bert")
+    else:
+        st.error("The 'transformers' library is not installed. Please install it to enable disrespect detection.")
 
     def is_abusive_or_disrespectful(text):
-        result = disrespect_detector(text)[0]
-        return result['label'] == 'toxic' and result['score'] > 0.7
+        if transformers_installed:
+            result = disrespect_detector(text)[0]
+            return result['label'] == 'toxic' and result['score'] > 0.7
+        return False  # Fallback if transformers is not installed
 
     # --- On Submit ---
     if query and query.strip():
@@ -341,4 +352,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+                )

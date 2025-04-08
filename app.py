@@ -287,6 +287,8 @@ if "selected_history" not in st.session_state:
     st.session_state.selected_history = "New Chat"
 if "new_chat_created" not in st.session_state:
     st.session_state.new_chat_created = False
+if "first_input" not in st.session_state:
+    st.session_state.first_input = True
 
 # --- Sidebar (Scrollable History Buttons) ---
 with st.sidebar:
@@ -401,10 +403,6 @@ st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
 query = st.chat_input("Message DigamberGPT")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Ensure chatbot responds to the first input ---
-if "first_input" not in st.session_state:
-    st.session_state.first_input = True
-
 # --- Typing Effect ---
 def display_typing_effect(text):
     message = st.empty()
@@ -482,6 +480,7 @@ if query and query.strip():
     # Ensuring chatbot responds to the first input
     if st.session_state.first_input:
         st.session_state.first_input = False
+        st.rerun()
 
 # --- Voice Output ---
 voice_toggle = st.checkbox("Speak Response (Hindi)")
@@ -493,4 +492,6 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         tts.save(filename)
         audio_file = open(filename, "rb")
         audio_bytes = audio_file.read()
-        st.audio(audio_bytes
+        st.audio(audio_bytes, format="audio/mp3")
+        audio_file.close()
+        os.remove(filename

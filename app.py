@@ -23,7 +23,7 @@ st.set_page_config(page_title="DigamberGPT", layout="centered")
 try:
     import google.generativeai as genai
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model_fast = genai.GenerativeModel("gemini-1.0-pro")  # Updated model names
+    model_fast = genai.GenerativeModel("gemini-2.0-flash")  # Updated model names
     model_deep = genai.GenerativeModel("gemini-1.5-pro-latest")
 except ImportError as e:
     st.error(f"Failed to load Google Generative AI: {str(e)}")

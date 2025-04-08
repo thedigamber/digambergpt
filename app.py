@@ -45,8 +45,8 @@ st.set_page_config(
 try:
     import google.generativeai as genai
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-pro")  # Changed to gemini-pro for better performance
-    st.success("✅ Gemini Pro loaded successfully!")
+    model = genai.GenerativeModel("gemini-2.0-flash")  # Using only gemini-2.0-flash as requested
+    st.success("✅ Gemini 2.0 Flash loaded successfully!")
 except Exception as e:
     st.error(f"⚠️ Failed to load Gemini: {str(e)}")
     model = None
@@ -97,13 +97,13 @@ def generate_response(prompt, chat_history=None):
         response = model.generate_content(
             messages,
             generation_config={
-                "temperature": 0.9,  # Increased for more creative responses
+                "temperature": 0.9,  # More creative responses
                 "top_p": 1.0,
                 "max_output_tokens": 4096
             },
             safety_settings={
                 "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE", 
                 "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
                 "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
             }
@@ -117,41 +117,30 @@ def generate_response(prompt, chat_history=None):
 
 def generate_image(prompt):
     try:
-        # Try multiple models with fallback
-        models = [
-            "stabilityai/stable-diffusion-xl-base-1.0",
-            "runwayml/stable-diffusion-v1-5",
-            "CompVis/stable-diffusion-v1-4"
-        ]
+        # Using SDXL with enhanced parameters
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+            headers={"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"},
+            json={
+                "inputs": prompt,
+                "options": {
+                    "wait_for_model": True,
+                    "guidance_scale": 9,
+                    "num_inference_steps": 50
+                }
+            },
+            timeout=45
+        )
         
-        for model_name in models:
-            try:
-                response = requests.post(
-                    f"https://api-inference.huggingface.co/models/{model_name}",
-                    headers={"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"},
-                    json={
-                        "inputs": prompt,
-                        "options": {
-                            "wait_for_model": True,
-                            "guidance_scale": 9,
-                            "num_inference_steps": 50
-                        }
-                    },
-                    timeout=45
-                )
-                
-                if response.status_code == 200:
-                    img = Image.open(io.BytesIO(response.content))
-                    img_path = f"generated_{uuid.uuid4().hex}.png"
-                    img.save(img_path)
-                    return img_path
-                
-            except Exception as e:
-                continue
-                
-        st.error("⚠️ All image generation attempts failed. Please try again later.")
-        return None
-        
+        if response.status_code == 200:
+            img = Image.open(io.BytesIO(response.content))
+            img_path = f"generated_{uuid.uuid4().hex}.png"
+            img.save(img_path)
+            return img_path
+        else:
+            st.error(f"⚠️ Image generation failed with status: {response.status_code}")
+            return None
+            
     except Exception as e:
         st.error(f"⚠️ Image generation failed: {str(e)}")
         return None

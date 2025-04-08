@@ -45,7 +45,7 @@ st.set_page_config(
 try:
     import google.generativeai as genai
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-2.0-flash")  # Using only gemini-2.0-flash as requested
+    model = genai.GenerativeModel("gemini-2.0-flash")
     st.success("✅ Gemini 2.0 Flash loaded successfully!")
 except Exception as e:
     st.error(f"⚠️ Failed to load Gemini: {str(e)}")
@@ -80,20 +80,23 @@ def analyze_sentiment(text):
         return None
 
 # --- Core Functions ---
-def generate_response(prompt, chat_history=None):
+def generate_response(prompt):
     if not model:
         return "Error: AI model not loaded", None
     
     try:
-        # Build conversation history
+        # Get full conversation history
+        chat_history = st.session_state.users_db[st.session_state.user][2]
+        
+        # Prepare messages for Gemini
         messages = []
-        if chat_history:
-            for msg in chat_history:
-                role = "user" if msg["role"] == "user" else "model"
-                messages.append({"role": role, "parts": [msg["content"]]})
+        for msg in chat_history[-20:]:  # Last 20 messages as context
+            role = "user" if msg["role"] == "user" else "model"
+            messages.append({"role": role, "parts": [msg["content"]]})
         
         messages.append({"role": "user", "parts": [prompt]})
         
+        # Generate response with full context
         response = model.generate_content(
             messages,
             generation_config={
@@ -103,7 +106,7 @@ def generate_response(prompt, chat_history=None):
             },
             safety_settings={
                 "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE", 
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
                 "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
                 "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
             }
@@ -117,7 +120,6 @@ def generate_response(prompt, chat_history=None):
 
 def generate_image(prompt):
     try:
-        # Using SDXL with enhanced parameters
         response = requests.post(
             "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
             headers={"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"},
@@ -158,8 +160,17 @@ def login_page():
                 if st.session_state.users_db[username][0] == hash_password(password):
                     st.session_state.user = username
                     st.session_state.page = "chat"
-                    # Load user's chat history
-                    st.session_state.messages = st.session_state.users_db[username][2]
+                    # Initialize chat from user's history
+                    if "messages" not in st.session_state:
+                        st.session_state.messages = st.session_state.users_db[username][2]
+                        if not st.session_state.messages:  # Add welcome message if empty
+                            welcome_msg = {
+                                "role": "assistant",
+                                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                                "sentiment": None
+                            }
+                            st.session_state.messages.append(welcome_msg)
+                            st.session_state.users_db[username][2].append(welcome_msg)
                     st.success("Login successful!")
                     time.sleep(1)
                     st.rerun()
@@ -240,18 +251,6 @@ def forgot_password_page():
 def chat_page():
     st.title("🤖 DigamberGPT with Sentiment Analysis")
     
-    # Initialize chat history if not exists
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-        welcome_msg = {
-            "role": "assistant",
-            "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
-            "sentiment": None
-        }
-        st.session_state.messages.append(welcome_msg)
-        # Save to user's history
-        st.session_state.users_db[st.session_state.user][2].append(welcome_msg)
-
     # Display chat messages
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -267,23 +266,24 @@ def chat_page():
 
     # Chat input
     if prompt := st.chat_input("Your message..."):
-        # Add user message
+        # Add user message only once
         user_msg = {"role": "user", "content": prompt}
         st.session_state.messages.append(user_msg)
         st.session_state.users_db[st.session_state.user][2].append(user_msg)
         
-        with st.spinner("💭 Analyzing..."):
+        with st.spinner("💭 Generating response..."):
             if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
                 img_path = generate_image(prompt)
                 if img_path:
                     img_msg = {
                         "role": "assistant", 
-                        "content": f"![Generated Image]({img_path})"
+                        "content": f"![Generated Image]({img_path})",
+                        "sentiment": None
                     }
                     st.session_state.messages.append(img_msg)
                     st.session_state.users_db[st.session_state.user][2].append(img_msg)
             else:
-                response, sentiment = generate_response(prompt, st.session_state.messages[-10:])  # Last 10 messages as context
+                response, sentiment = generate_response(prompt)
                 ai_msg = {
                     "role": "assistant", 
                     "content": response,
@@ -291,6 +291,8 @@ def chat_page():
                 }
                 st.session_state.messages.append(ai_msg)
                 st.session_state.users_db[st.session_state.user][2].append(ai_msg)
+        
+        # Force rerun to update UI
         st.rerun()
 
     # Sidebar controls
@@ -298,23 +300,20 @@ def chat_page():
         st.header(f"👤 {st.session_state.user}")
         
         if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.users_db[st.session_state.user][2] = []
-            welcome_msg = {
+            st.session_state.messages = [{
                 "role": "assistant",
                 "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
                 "sentiment": None
-            }
-            st.session_state.messages.append(welcome_msg)
-            st.session_state.users_db[st.session_state.user][2].append(welcome_msg)
+            }]
+            st.session_state.users_db[st.session_state.user][2] = st.session_state.messages.copy()
             st.rerun()
         
         st.markdown("---")
         st.subheader("🎨 Image Generation Tips")
         st.markdown("""
         - Be specific in your description
-        - Include style preferences (e.g., 'digital art', 'photorealistic')
-        - Example: "A cyberpunk cityscape at night with neon lights, digital art style"
+        - Include style preferences
+        - Example: "A futuristic city at night, cyberpunk style, 4K resolution"
         """)
         
         st.markdown("---")

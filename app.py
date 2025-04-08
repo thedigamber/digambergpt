@@ -379,7 +379,7 @@ current_chat = st.session_state.selected_history
 if current_chat in st.session_state.chat_history:
     for role, msg in st.session_state.chat_history[current_chat]:
         if role == "image":
-            st.image(msg, caption="Generated Image")
+            st.markdown(f"![Generated Image]({msg})")
         else:
             with st.chat_message(role):
                 st.markdown(msg)
@@ -441,6 +441,14 @@ if query and query.strip():
             if img_path:
                 st.session_state.chat_history[selected_chat].append(("image", img_path))
                 st.rerun()
+            else:
+                img_path = generate_image_huggingface(query, width, height, style)
+                if img_path:
+                    st.session_state.chat_history[selected_chat].append(("image", img_path))
+                    st.rerun()
+                else:
+                    st.session_state.chat_history[selected_chat].append(("assistant", "Image generate nahi ho paayi, system mein dikkat ho sakti hai. Thodi der baad try karo."))
+                    st.rerun()
         else:
             past_convo = "\n".join(
                 [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
@@ -484,3 +492,9 @@ if voice_toggle and st.session_state.chat_history[st.session_state.selected_hist
         st.audio(audio_bytes, format="audio/mp3")
         audio_file.close()
         os.remove(filename)
+
+# --- APK Download Section ---
+st.markdown("---")
+st.markdown("### DigamberGPT Android App")
+query_params = st.query_params
+is_app = query_params.get("app", ["false"])[0].lower() == "true"

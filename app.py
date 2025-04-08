@@ -1,5 +1,4 @@
 import streamlit as st
-import replicate
 import requests
 
 # --- Page Config ---
@@ -86,26 +85,27 @@ def generate_image_stability(prompt, width=512, height=512):
             st.error(f"Image generation failed: {str(e)}")
         return None
 
-# --- Replicate Image Generation Function ---
+# --- Hugging Face Image Generation Function ---
 def generate_image(prompt, width, height):
     try:
         # Access the API token from secrets
-        api_token = st.secrets["replicate"]["api_token"]
+        api_token = st.secrets["huggingface"]["api_token"]
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "inputs": prompt,
+            "options": {
+                "width": width,
+                "height": height
+            }
+        }
+        response = requests.post("https://api-inference.huggingface.co/models/nitrosocke/porn-diffusion", headers=headers, json=data)
+        response.raise_for_status()
         
-        # Create a replicate model instance
-        model = replicate.models.get("thedigamber/realistic-3d-nsfwgen")
-        
-        # Generate the image using the replicate API
-        output = model.predict(
-            prompt=prompt, 
-            width=width, 
-            height=height, 
-            api_token=api_token
-        )
-        
-        # Fetch the image URL and load the image
-        img_url = output["image"]
-        img = Image.open(io.BytesIO(requests.get(img_url).content))
+        img_data = response.content
+        img = Image.open(io.BytesIO(img_data))
         
         return img
     except Exception as e:
@@ -373,7 +373,7 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         os.remove(filename)
 
 # --- Image Generation ---
-st.subheader("Image Generator (Replicate Model)")
+st.subheader("Image Generator (Hugging Face Model)")
 img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
 img_resolution = st.selectbox("Image Resolution:", ["512x512", "768x768", "1024x1024"], index=0)
 
@@ -406,4 +406,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-        )
+    )

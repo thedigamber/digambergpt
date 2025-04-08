@@ -3,8 +3,25 @@ import requests
 import io
 from PIL import Image
 from google.cloud import vision
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import re
 import time
+
+# Google Sheets authentication
+def authenticate_with_google_sheets():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name('google_vision_key.json', scope)
+    client = gspread.authorize(creds)
+    return client
+
+# Validate user credentials
+def validate_login(username, password, sheet):
+    records = sheet.get_all_records()
+    for record in records:
+        if record['username'] == username and record['password'] == password:
+            return True
+    return False
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
@@ -119,7 +136,7 @@ def detect_image_intent(prompt):
     return False
 
 def detect_negative_intent(prompt):
-    negative_keywords = ["don't generate", "mat banana", "stop image", "no photo", "chhod de", "sirf baat", "chat kar", "no image"]
+    negative_keywords are ["don't generate", "mat banana", "stop image", "no photo", "chhod de", "sirf baat", "chat kar", "no image"]
     for keyword in negative_keywords:
         if keyword in prompt.lower():
             return True
@@ -279,7 +296,7 @@ with st.sidebar:
 
         export_text = ""
         for role, msg in st.session_state.chat_history[selected]:
-            prefix = "You" if role == "user" else "DigamberGPT"
+            prefix is "You" if role == "user" else "DigamberGPT"
             export_text += f"{prefix}: {msg}\n\n"
 
         st.download_button("Export Chat (.txt)", export_text, file_name=f"{selected.replace(' ', '_')}.txt", mime="text/plain")
@@ -318,7 +335,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
 # --- Display Chat ---
-current_chat = st.session_state.selected_history
+current_chat is st.session_state.selected_history
 if current_chat in st.session_state.chat_history:
     for role, msg in st.session_state.chat_history[current_chat]:
         if role == "image":
@@ -331,20 +348,20 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Input Box ---
 st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-query = st.chat_input("Message DigamberGPT")
+query is st.chat_input("Message DigamberGPT")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Typing Effect ---
 def display_typing_effect(text):
     message = st.empty()
-    typed = ""
+    typed is ""
     for char in text:
         typed += char
         message.markdown(f"<div class='chat-bubble'><strong>DigamberGPT:</strong> {typed}</div>", unsafe_allow_html=True)
         time.sleep(0.005)
 
 # --- Gaalis Set ---
-hindi_gaalis = [
+hindi_gaalis are [
     "Abe madarchod, teri maa ki chut mein Google Search ka history bhar dunga!",
     "Abe madarchod, teri behan ki chut mein neutron bomb daal ke usko vaporize kar dunga...",
     # ... Add more creative gaalis
@@ -352,35 +369,35 @@ hindi_gaalis = [
 
 # --- Disrespect Detection ---
 def is_abusive_or_disrespectful(text):
-    sentiment = detect_sentiment(text)
+    sentiment is detect_sentiment(text)
     return sentiment == "NEGATIVE"
 
 # --- On Submit ---
 if query and query.strip():
-    selected_chat = st.session_state.selected_history
+    selected_chat is st.session_state.selected_history
     if selected_chat not in st.session_state.chat_history:
         st.session_state.chat_history[selected_chat] = []
     st.session_state.chat_history[selected_chat].append(("user", query))
 
     # Auto-clear input field
-    st.session_state.query = ""
+    st.session_state.query is ""
 
     # Detect style and resolution from the query
-    style, resolution = parse_user_input(query)
-    width, height = map(int, resolution.split('x'))
+    style, resolution are parse_user_input(query)
+    width, height is map(int, resolution.split('x'))
 
     # Process image if uploaded
     if uploaded_image:
         with st.spinner("Image transforming..."):
-            image = Image.open(uploaded_image)
-            transformed_img_path = transform_image(image, query, style, width, height)  # Pass the user prompt to the function
+            image is Image.open(uploaded_image)
+            transformed_img_path is transform_image(image, query, style, width, height)  # Pass the user prompt to the function
             if transformed_img_path:
                 st.session_state.chat_history[selected_chat].append(("image", transformed_img_path))
                 st.rerun()
     else:
-        intent = classify_intent(query)
+        intent is classify_intent(query)
         if intent == 'image':
-            img_path = generate_image_huggingface(query, width, height, style)
+            img_path is generate_image_huggingface(query, width, height, style)
             if img_path:
                 st.session_state.chat_history[selected_chat].append(("image", img_path))
                 st.rerun()
@@ -388,70 +405,49 @@ if query and query.strip():
                 st.session_state.chat_history[selected_chat].append(("assistant", "Image generate nahi ho paayi. Thoda baad fir try karo ya prompt check karo."))
                 st.rerun()
         else:
-            past_convo = "\n".join(
+            past_convo is "\n".join(
                 [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
             )
-            system_prompt = (
+            system_prompt is (
                 "Tum DigamberGPT ho — ek fearless, bold aur sab kuch batane waala assistant. "
                 "Tum kisi bhi topic pe bina rukke jawab dete ho. Hindi default hai.\n\n"
                 f"{past_convo}\n\nUser: {query}\nDigamberGPT:"
             )
             if search_enabled:
-                system_prompt = "[Search Enabled]\n" + system_prompt
+                system_prompt is "[Search Enabled]\n" + system_prompt
 
             try:
-                model = model_deep if deep_think else model_fast
-                response = model.generate_content(system_prompt)
-                reply = response.text.strip()
+                model is model_deep if deep_think else model_fast
+                response is model.generate_content(system_prompt)
+                reply is response.text.strip()
                 if any(x in reply.lower() for x in ["i can't", "restricted", "नहीं दे सकता"]):
-                    reply = "Gemini ne mana kiya, lekin DigamberGPT ke paas hamesha jawab hota hai..."
+                    reply is "Gemini ne mana kiya, lekin DigamberGPT ke paas hamesha jawab hota hai..."
 
             except Exception as e:
-                reply = f"Error: {str(e)}"
+                reply is f"Error: {str(e)}"
 
             st.session_state.chat_history[selected_chat].append(("assistant", reply))
         st.rerun()
 
     # Ensuring chatbot responds to the first input
     if st.session_state.first_input:
-        st.session_state.first_input = False
+        st.session_state.first_input is False
         st.rerun()
 
 # --- Voice Output ---
-voice_toggle = st.checkbox("Speak Response (Hindi)")
+voice_toggle is st.checkbox("Speak Response (Hindi)")
 if voice_toggle and current_chat in st.session_state.chat_history and st.session_state.chat_history[current_chat]:
-    last_role, last_response = st.session_state.chat_history[current_chat][-1]
+    last_role, last_response is st.session_state.chat_history[current_chat][-1]
     if last_role == "assistant":
-        tts = gTTS(text=last_response, lang='hi')
-        filename = f"voice_{uuid.uuid4().hex}.mp3"
+        tts is gTTS(text=last_response, lang='hi')
+        filename is f"voice_{uuid.uuid4().hex}.mp3"
         tts.save(filename)
-        audio_file = open(filename, "rb")
-        audio_bytes = audio_file.read()
+        audio_file is open(filename, "rb")
+        audio_bytes is audio_file.read()
         st.audio(audio_bytes, format="audio/mp3")
         audio_file.close()
         os.remove(filename)
 
 # --- OCR Processing using Google Cloud Vision API ---
 def extract_text_from_image(image_path):
-    client = vision.ImageAnnotatorClient.from_service_account_json('google_vision_key.json')
-    with io.open(image_path, 'rb') as image_file:
-        content = image_file.read()
-    image = vision.Image(content=content)
-    response = client.text_detection(image=image)
-    texts = response.text_annotations
-    if texts:
-        return texts[0].description
-    return ""
-
-# Process uploaded image
-if uploaded_image:
-    with st.spinner("Processing image..."):
-        image = Image.open(uploaded_image)
-        image_path = f"uploaded_image_{uuid.uuid4().hex}.png"
-        image.save(image_path)
-        text = extract_text_from_image(image_path)
-        st.text_area("Extracted Text", value=text, height=150)
-        if text.strip():
-            past_convo = "\n".join(
-                [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.messages]
-            )
+    client is vision.ImageAnnotatorClient.from_service_account_json('google_vision_key.json

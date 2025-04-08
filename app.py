@@ -3,6 +3,7 @@ import requests
 import io
 from PIL import Image
 import base64
+import re
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
@@ -178,6 +179,22 @@ def transform_image(image, style="Ghibli", width=512, height=512):
         st.error(f"Image transformation failed: {str(e)}")
         return None
 
+# --- Function to Parse User Input ---
+def parse_user_input(user_input):
+    style_keywords = ["Ghibli", "Anime", "Cyberpunk", "Pixar", "Realistic", "Fantasy", "Sci-Fi", "Pixel"]
+    resolution_keywords = ["512x512", "768x768", "1024x1024"]
+    
+    style = "Realistic"
+    resolution = "512x512"
+    
+    for word in user_input.split():
+        if word in style_keywords:
+            style = word
+        if word in resolution_keywords:
+            resolution = word
+    
+    return style, resolution
+
 # --- Check if text is an image prompt ---
 def is_image_prompt(text):
     keywords = ["image", "photo", "draw", "picture", "painting"]
@@ -330,7 +347,7 @@ col1, col2 = st.columns(2)
 deep_think = col1.checkbox("Deep Think", value=False)
 search_enabled = col2.checkbox("Search", value=False)
 
-# --- File Upload ---
+# --- File Upload --- (PDF/TXT)
 uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
 if uploaded_file:
     if uploaded_file.type == "application/pdf":
@@ -388,41 +405,52 @@ if query and query.strip():
         st.session_state.chat_history[selected_chat] = []
     st.session_state.chat_history[selected_chat].append(("user", query))
 
-    if is_abusive_or_disrespectful(query):
-        reply = random.choice(hindi_gaalis)
-    elif is_image_prompt(query):
-        img = generate_image_stability(query)
-        if img:
-            st.session_state.chat_history[selected_chat].append(("image", img))
-            st.rerun()
-        else:
-            reply = "Image generation failed due to insufficient balance. Please check your Stability AI account."
-            st.session_state.chat_history[selected_chat].append(("assistant", reply))
-            st.rerun()
+    # Auto-clear input field
+    st.session_state.query = ""
+
+    # Detect style and resolution from the query
+    style, resolution = parse_user_input(query)
+    width, height = map(int, resolution.split('x'))
+
+    # Process image if uploaded
+    uploaded_image = st.file_uploader("Upload an image (PNG/JPG):", type=["png", "jpg", "jpeg"], key="uploaded_image")
+    if uploaded_image:
+        with st.spinner("Image transforming..."):
+            image = Image.open(uploaded_image)
+            transformed_img = transform_image(image, style, width, height)
+            if transformed_img:
+                st.session_state.chat_history[selected_chat].append(("image", transformed_img))
+                st.rerun()
     else:
-        past_convo = "\n".join(
-            [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
-        )
-        system_prompt = (
-            "Tum DigamberGPT ho — ek fearless, bold aur sab kuch batane waala assistant. "
-            "Tum kisi bhi topic pe bina rukke jawab dete ho. Hindi default hai.\n\n"
-            f"{past_convo}\n\nUser: {query}\nDigamberGPT:"
-        )
-        if search_enabled:
-            system_prompt = "[Search Enabled]\n" + system_prompt
+        if is_image_prompt(query):
+            img = generate_image_stability(query)
+            if img:
+                st.session_state.chat_history[selected_chat].append(("image", img))
+                st.rerun()
+        else:
+            past_convo = "\n".join(
+                [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
+            )
+            system_prompt = (
+                "Tum DigamberGPT ho — ek fearless, bold aur sab kuch batane waala assistant. "
+                "Tum kisi bhi topic pe bina rukke jawab dete ho. Hindi default hai.\n\n"
+                f"{past_convo}\n\nUser: {query}\nDigamberGPT:"
+            )
+            if search_enabled:
+                system_prompt = "[Search Enabled]\n" + system_prompt
 
-        try:
-            model = model_deep if deep_think else model_fast
-            response = model.generate_content(system_prompt)
-            reply = response.text.strip()
-            if any(x in reply.lower() for x in ["i can't", "restricted", "नहीं दे सकता"]):
-                reply = "Gemini ne mana kiya, lekin DigamberGPT ke paas hamesha jawab hota hai..."
+            try:
+                model = model_deep if deep_think else model_fast
+                response = model.generate_content(system_prompt)
+                reply = response.text.strip()
+                if any(x in reply.lower() for x in ["i can't", "restricted", "नहीं दे सकता"]):
+                    reply = "Gemini ne mana kiya, lekin DigamberGPT ke paas hamesha jawab hota hai..."
 
-        except Exception as e:
-            reply = f"Error: {str(e)}"
+            except Exception as e:
+                reply = f"Error: {str(e)}"
 
-        st.session_state.chat_history[selected_chat].append(("assistant", reply))
-    st.rerun()
+            st.session_state.chat_history[selected_chat].append(("assistant", reply))
+        st.rerun()
 
 # --- Voice Output ---
 voice_toggle = st.checkbox("Speak Response (Hindi)")
@@ -440,32 +468,4 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
 
 # --- Image Generation ---
 st.subheader("Image Generator (Multiple Styles)")
-img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
-img_style = st.selectbox("Image Style:", ["Anime", "Realistic", "Sci-Fi", "Pixel", "Fantasy"], index=1)
-img_resolution = st.selectbox("Image Resolution:", ["512x512", "768x768", "1024x1024"], index=0)
-
-if st.button("Image Banao", key="generate_img_btn"):
-    with st.spinner("Image ban rahi hai..."):
-        width, height = map(int, img_resolution.split('x'))
-        img = generate_image_huggingface(img_prompt, width, height, img_style)
-        if img:
-            st.image(img, caption="Tumhari Image")
-            # Download link
-            buffered = io.BytesIO()
-            img.save(buffered, format="PNG")
-            img_str = base64.b64encode(buffered.getvalue()).decode()
-            href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
-            st.markdown(href, unsafe_allow_html=True)
-
-# --- Image Upload and Transformation ---
-st.subheader("Upload Your Image for Style Transformation")
-uploaded_image = st.file_uploader("Upload an image (PNG/JPG):", type=["png", "jpg", "jpeg"])
-img_style_transform = st.selectbox("Transformation Style:", ["Ghibli", "Anime", "Cyberpunk"], index=0)
-img_resolution_transform = st.selectbox("Transformation Resolution:", ["512x512", "768x768", "1024x1024"], index=0)
-
-if st.button("Transform Image", key="transform_img_btn"):
-    if uploaded_image:
-        with st.spinner("Image transforming..."):
-            image = Image.open(uploaded_image)
-            width, height = map(int, img_resolution_transform.split('x'))
-           
+img_prompt = st

@@ -164,9 +164,28 @@ def parse_user_input(user_input):
     return style, resolution
 
 # --- Check if text is an image prompt ---
-def is_image_prompt(text):
-    keywords = ["image", "photo", "draw", "picture", "painting", "generate image", "billi ki photo", "generate image of a cat"]
-    return any(keyword in text.lower() for keyword in keywords)
+def detect_image_intent(prompt):
+    """Detect if the user wants to generate an image."""
+    image_keywords = ["generate", "image", "photo", "draw", "style", "picture", "art", "sketch", "scene", "dikhana", "tasveer"]
+    for keyword in image_keywords:
+        if keyword in prompt.lower():
+            return True
+    return False
+
+def detect_negative_intent(prompt):
+    """Detect if the user wants to avoid generating an image."""
+    negative_keywords = ["don't generate", "mat banana", "stop image", "no photo", "chhod de", "sirf baat", "chat kar", "no image"]
+    for keyword in negative_keywords:
+        if keyword in prompt.lower():
+            return True
+    return False
+
+def classify_intent(prompt):
+    """Classify the user intent into 'image' or 'chat'."""
+    if detect_image_intent(prompt) and not detect_negative_intent(prompt):
+        return 'image'
+    else:
+        return 'chat'
 
 st.markdown("""
     <style>
@@ -415,7 +434,8 @@ if query and query.strip():
                 st.session_state.chat_history[selected_chat].append(("image", transformed_img))
                 st.rerun()
     else:
-        if is_image_prompt(query):
+        intent = classify_intent(query)
+        if intent == 'image':
             img = generate_image_stability(query, width, height, style)
             if img:
                 st.session_state.chat_history[selected_chat].append(("image", img))
@@ -451,15 +471,33 @@ if query and query.strip():
         st.rerun()
 
 # --- Voice Output ---
-voice_toggle = st.checkbox("Speak Response (Hindi)")
-if voice_toggle and current_chat in st.session_state.chat_history and st.session_state.chat_history[current_chat]:
-    last_role, last_response = st.session_state.chat_history[current_chat][-1]
-    if last_role == "assistant":
-        tts = gTTS(text=last_response, lang='hi')
-        filename = f"voice_{uuid.uuid4().hex}.mp3"
-        tts.save(filename)
-        audio_file = open(filename, "rb")
-        audio_bytes = audio_file.read()
-        st.audio(audio_bytes, format="audio/mp3")
-        audio_file.close()
-        os.remove(filename)
+    voice_toggle = st.checkbox("Speak Response (Hindi)")
+    if voice_toggle and current_chat in st.session_state.chat_history and st.session_state.chat_history[current_chat]:
+        last_role, last_response = st.session_state.chat_history[current_chat][-1]
+        if last_role == "assistant":
+            tts = gTTS(text=last_response, lang='hi')
+            filename = f"voice_{uuid.uuid4().hex}.mp3"
+            tts.save(filename)
+            audio_file = open(filename, "rb")
+            audio_bytes = audio_file.read()
+            st.audio(audio_bytes, format="audio/mp3")
+            audio_file.close()
+            os.remove(filename)
+
+# --- APK Download Section ---
+st.markdown("---")
+st.markdown("### DigamberGPT Android App")
+query_params = st.query_params
+is_app = query_params.get("app", ["false"])[0].lower() == "true"
+
+if is_app:
+    st.markdown(
+        """<button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>अपडेट उपलब्ध है</button>""",
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
+        <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
+        unsafe_allow_html=True
+    )

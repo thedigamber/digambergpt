@@ -91,10 +91,16 @@ def generate_response(prompt):
 def generate_image(prompt, style="Realistic"):
     """Generate image using HuggingFace"""
     try:
+        api_token = os.getenv('HUGGINGFACE_API_TOKEN')
+        headers = {"Authorization": f"Bearer {api_token}"}
+        json_data = {
+            "inputs": prompt,
+            "options": {"wait_for_model": True}
+        }
         response = requests.post(
             f"https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-            headers={"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"},
-            json={"inputs": prompt}
+            headers=headers,
+            json=json_data
         )
         response.raise_for_status()
         img = Image.open(io.BytesIO(response.content))

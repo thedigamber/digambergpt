@@ -68,8 +68,6 @@ def generate_image_stability(prompt, width=512, height=512, style="Realistic"):
             "Fantasy": "fantasy-diffusion"
         }
 
-        model = style_map.get(style, "stable-diffusion-v1-4")
-
         answers = stability_api.generate(
             prompt=prompt,
             seed=random.randint(0, 2**32 - 1),  # Ensure different seed for each generation
@@ -78,7 +76,6 @@ def generate_image_stability(prompt, width=512, height=512, style="Realistic"):
             width=width,
             height=height,
             samples=1,
-            model=model,
             sampler=generation.SAMPLER_K_DPMPP_2M
         )
 
@@ -474,7 +471,7 @@ if query and query.strip():
             st.session_state.chat_history[selected_chat].append(("assistant", reply))
         st.rerun()
 
-    # Ensuring chatbot responds to the first input
+# Ensuring chatbot responds to the first input
     if st.session_state.first_input:
         st.session_state.first_input = False
         st.rerun()
@@ -498,3 +495,15 @@ st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 query_params = st.query_params
 is_app = query_params.get("app", ["false"])[0].lower() == "true"
+
+if is_app:
+    st.markdown(
+        """<button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>अपडेट उपलब्ध है</button>""",
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
+        <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
+        unsafe_allow_html=True
+    )

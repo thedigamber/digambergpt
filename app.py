@@ -16,9 +16,6 @@ from gtts import gTTS
 import os
 import uuid
 import emoji
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-from stability_sdk import client
-from datetime import datetime
 
 # Try to import the transformers library
 try:
@@ -45,57 +42,6 @@ def detect_sentiment(text):
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
 model_fast = genai.GenerativeModel("gemini-2.0-flash")
 model_deep = genai.GenerativeModel("gemini-1.5-pro")
-
-# --- Stability AI Image Generation Function ---
-def generate_image_stability(prompt, width=512, height=512, style="Realistic"):
-    try:
-        # Check if API key exists
-        if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
-            st.error("Stability API key not configured properly")
-            return None
-
-        stability_api = client.StabilityInference(
-            key=st.secrets["stability"]["key"],
-            verbose=True,
-        )
-
-        # Map styles to StabilityAI models
-        style_map = {
-            "Anime": "waifu-diffusion",
-            "Realistic": "stable-diffusion-v1-4",
-            "Sci-Fi": "stable-diffusion-v1-4",
-            "Pixel": "pixel-art-diffusion",
-            "Fantasy": "fantasy-diffusion"
-        }
-
-        answers = stability_api.generate(
-            prompt=prompt,
-            seed=random.randint(0, 2**32 - 1),  # Ensure different seed for each generation
-            steps=50,
-            cfg_scale=8.0,
-            width=width,
-            height=height,
-            samples=1,
-            sampler=generation.SAMPLER_K_DPMPP_2M
-        )
-
-        for resp in answers:
-            for artifact in resp.artifacts:
-                if artifact.finish_reason == generation.FILTER:
-                    st.warning("Prompt blocked by safety filter. Try something else.")
-                    return None
-                if artifact.type == generation.ARTIFACT_IMAGE:
-                    img = Image.open(io.BytesIO(artifact.binary))
-                    img_path = f"generated_image_{uuid.uuid4().hex}.png"
-                    img.save(img_path)
-                    return img_path
-
-    except Exception as e:
-        if "RESOURCE_EXHAUSTED" in str(e):
-            st.error("Image generation failed due to insufficient balance. Please check your Stability AI account.")
-        else:
-            st.error(f"Image generation failed: {str(e)}")
-        return None
 
 # --- Hugging Face Image Generation Function with Retry ---
 def generate_image_huggingface(prompt, width, height, style="Realistic", retries=3):
@@ -434,18 +380,13 @@ if query and query.strip():
     else:
         intent = classify_intent(query)
         if intent == 'image':
-            img_path = generate_image_stability(query, width, height, style)
+            img_path = generate_image_huggingface(query, width, height, style)
             if img_path:
                 st.session_state.chat_history[selected_chat].append(("image", img_path))
                 st.rerun()
             else:
-                img_path = generate_image_huggingface(query, width, height, style)
-                if img_path:
-                    st.session_state.chat_history[selected_chat].append(("image", img_path))
-                    st.rerun()
-                else:
-                    st.session_state.chat_history[selected_chat].append(("assistant", "Image generate nahi ho paayi, system mein dikkat ho sakti hai. Thodi der baad try karo."))
-                    st.rerun()
+                st.session_state.chat_history[selected_chat].append(("assistant", "Image generate nahi ho paayi. Thoda baad fir try karo ya prompt check karo."))
+                st.rerun()
         else:
             past_convo = "\n".join(
                 [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
@@ -471,15 +412,15 @@ if query and query.strip():
             st.session_state.chat_history[selected_chat].append(("assistant", reply))
         st.rerun()
 
-# Ensuring chatbot responds to the first input
+    # Ensuring chatbot responds to the first input
     if st.session_state.first_input:
         st.session_state.first_input = False
         st.rerun()
 
 # --- Voice Output ---
 voice_toggle = st.checkbox("Speak Response (Hindi)")
-if voice_toggle and st.session_state.chat_history[st.session_state.selected_history]:
-    last_role, last_response = st.session_state.chat_history[st.session_state.selected_history][-1]
+if voice_toggle and current_chat in st.session_state.chat_history and st.session_state.chat_history[current_chat]:
+    last_role, last_response = st.session_state.chat_history[current_chat][-1]
     if last_role == "assistant":
         tts = gTTS(text=last_response, lang='hi')
         filename = f"voice_{uuid.uuid4().hex}.mp3"
@@ -489,21 +430,3 @@ if voice_toggle and st.session_state.chat_history[st.session_state.selected_hist
         st.audio(audio_bytes, format="audio/mp3")
         audio_file.close()
         os.remove(filename)
-
-# --- APK Download Section ---
-st.markdown("---")
-st.markdown("### DigamberGPT Android App")
-query_params = st.query_params
-is_app = query_params.get("app", ["false"])[0].lower() == "true"
-
-if is_app:
-    st.markdown(
-        """<button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>अपडेट उपलब्ध है</button>""",
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
-        <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
-        unsafe_allow_html=True
-    )

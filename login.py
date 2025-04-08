@@ -2,9 +2,9 @@ import streamlit as st
 
 # Hardcoded credentials for simplicity
 USER_CREDENTIALS = {
-    "user1": "password1",
-    "user2": "password2",
-    "admin": "adminpass"
+    "user1": {"password": "password1", "email": "user1@example.com"},
+    "user2": {"password": "password2", "email": "user2@example.com"},
+    "admin": {"password": "adminpass", "email": "admin@example.com"}
 }
 
 def login():
@@ -16,7 +16,7 @@ def login():
 
     # Button to trigger login
     if st.button("Login"):
-        if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
+        if username in USER_CREDENTIALS and USER_CREDENTIALS[username]["password"] == password:
             st.success("Login successful!")
             st.session_state.logged_in = True
             st.session_state.username = username
@@ -26,18 +26,33 @@ def login():
 def signup():
     st.title("Signup")
 
-    # Input fields for new username and password
+    # Input fields for new username, password, and email
     new_username = st.text_input("New Username")
     new_password = st.text_input("New Password", type="password")
+    email = st.text_input("Email")
 
     # Button to trigger signup
     if st.button("Signup"):
         if new_username in USER_CREDENTIALS:
             st.error("Username already exists")
         else:
-            USER_CREDENTIALS[new_username] = new_password
+            USER_CREDENTIALS[new_username] = {"password": new_password, "email": email}
             st.success("Signup successful! Please login.")
             st.session_state.signup_complete = True
+
+def forgot_password():
+    st.title("Forgot Password")
+
+    # Input field for email
+    email = st.text_input("Enter your email")
+
+    # Button to trigger password recovery
+    if st.button("Recover Username"):
+        for username, details in USER_CREDENTIALS.items():
+            if details["email"] == email:
+                st.success(f"Your username is {username}")
+                return
+        st.error("Email not found")
 
 def main():
     if "logged_in" not in st.session_state:
@@ -53,11 +68,13 @@ def main():
         if st.session_state.signup_complete:
             login()
         else:
-            option = st.selectbox("Choose an option", ["Login", "Signup"])
+            option = st.selectbox("Choose an option", ["Login", "Signup", "Forgot Password"])
             if option == "Login":
                 login()
-            else:
+            elif option == "Signup":
                 signup()
+            else:
+                forgot_password()
 
 if __name__ == "__main__":
     main()

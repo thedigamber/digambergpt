@@ -8,4 +8,4 @@ PyPDF2==3.0.0
 emoji==2.0.0
 transformers==4.25.0
 requests==2.25.1
-pytesseract==0.3.10
+pytesseract==0.3.9

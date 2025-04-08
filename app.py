@@ -441,13 +441,3 @@ if uploaded_image:
             past_convo = "\n".join(
                 [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
             )
-            system_prompt = (
-                "Tum DigamberGPT ho — ek fearless, bold aur sab kuch batane waala assistant. "
-                "Tum kisi bhi topic pe bina rukke jawab dete ho. Hindi default hai.\n\n"
-                f"{past_convo}\n\nUser: {text}\nDigamberGPT:"
-            )
-            if search_enabled:
-                system_prompt = "[Search Enabled]\n" + system_prompt
-
-            try:
-                model = model_deep if deep_think else

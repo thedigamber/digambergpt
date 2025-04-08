@@ -243,6 +243,21 @@ st.markdown("""
         border-top: 1px solid #39ff14;
         z-index: 100;
     }
+    .upload-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px;
+        background-color: #0f0f0f;
+        border-bottom: 1px solid #39ff14;
+    }
+    .upload-container label {
+        color: #39ff14;
+        margin-right: 10px;
+    }
+    .upload-container input {
+        color: #39ff14;
+    }
     </style>
     <script>
     async function loadComponent() {
@@ -360,6 +375,12 @@ if uploaded_file:
         st.success("Text file content loaded!")
         st.text_area("Text File Content", value=text, height=150)
 
+# --- Image Upload Container ---
+st.markdown('<div class="upload-container">', unsafe_allow_html=True)
+st.markdown('<label for="uploaded_image">Upload image (optional):</label>', unsafe_allow_html=True)
+uploaded_image = st.file_uploader("", type=["png", "jpg", "jpeg"], key="uploaded_image", label_visibility='collapsed')
+st.markdown('</div>', unsafe_allow_html=True)
+
 # --- Chat Container ---
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
@@ -367,8 +388,11 @@ st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 current_chat = st.session_state.selected_history
 if current_chat in st.session_state.chat_history:
     for role, msg in st.session_state.chat_history[current_chat]:
-        with st.chat_message(role):
-            st.markdown(msg)
+        if role == "image":
+            st.image(msg, caption="Generated Image")
+        else:
+            with st.chat_message(role):
+                st.markdown(msg)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -413,7 +437,6 @@ if query and query.strip():
     width, height = map(int, resolution.split('x'))
 
     # Process image if uploaded
-    uploaded_image = st.file_uploader("Upload an image (PNG/JPG):", type=["png", "jpg", "jpeg"], key="uploaded_image")
     if uploaded_image:
         with st.spinner("Image transforming..."):
             image = Image.open(uploaded_image)
@@ -423,7 +446,7 @@ if query and query.strip():
                 st.rerun()
     else:
         if is_image_prompt(query):
-            img = generate_image_stability(query)
+            img = generate_image_stability(query, width, height, style)
             if img:
                 st.session_state.chat_history[selected_chat].append(("image", img))
                 st.rerun()
@@ -465,7 +488,3 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         st.audio(audio_bytes, format="audio/mp3")
         audio_file.close()
         os.remove(filename)
-
-# --- Image Generation ---
-st.subheader("Image Generator (Multiple Styles)")
-img_prompt = st

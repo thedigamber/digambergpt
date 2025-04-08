@@ -430,3 +430,24 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         st.audio(audio_bytes, format="audio/mp3")
         audio_file.close()
         os.remove(filename)
+
+# --- OCR Processing ---
+if uploaded_image:
+    with st.spinner("Processing image..."):
+        image = Image.open(uploaded_image)
+        text = pytesseract.image_to_string(image)
+        st.text_area("Extracted Text", value=text, height=150)
+        if text.strip():
+            past_convo = "\n".join(
+                [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
+            )
+            system_prompt = (
+                "Tum DigamberGPT ho — ek fearless, bold aur sab kuch batane waala assistant. "
+                "Tum kisi bhi topic pe bina rukke jawab dete ho. Hindi default hai.\n\n"
+                f"{past_convo}\n\nUser: {text}\nDigamberGPT:"
+            )
+            if search_enabled:
+                system_prompt = "[Search Enabled]\n" + system_prompt
+
+            try:
+                model = model_deep if deep_think else

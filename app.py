@@ -445,7 +445,7 @@ if query and query.strip():
                 st.session_state.chat_history[selected_chat].append(("image", transformed_img))
                 st.rerun()
     else:
-        if is_image_prompt(query):
+        if "generate image" in query.lower() or "image generate kar" in query.lower():
             img = generate_image_stability(query, width, height, style)
             if img:
                 st.session_state.chat_history[selected_chat].append(("image", img))

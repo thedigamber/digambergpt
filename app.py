@@ -119,7 +119,7 @@ def detect_image_intent(prompt):
     return False
 
 def detect_negative_intent(prompt):
-    negative_keywords are ["don't generate", "mat banana", "stop image", "no photo", "chhod de", "sirf baat", "chat kar", "no image"]
+    negative_keywords = ["don't generate", "mat banana", "stop image", "no photo", "chhod de", "sirf baat", "chat kar", "no image"]
     for keyword in negative_keywords:
         if keyword in prompt.lower():
             return True

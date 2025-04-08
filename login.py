@@ -1,4 +1,6 @@
 import streamlit as st
+import bcrypt
+import json
 
 # Hardcoded credentials for simplicity
 USER_CREDENTIALS = {

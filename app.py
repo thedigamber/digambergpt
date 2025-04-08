@@ -16,6 +16,7 @@ from stability_sdk import client
 import io
 from PIL import Image
 import base64
+from datetime import datetime
 
 # Try to import the transformers library
 try:
@@ -44,7 +45,7 @@ model_fast = genai.GenerativeModel("gemini-2.0-flash")
 model_deep = genai.GenerativeModel("gemini-1.5-pro")
 
 # --- Stability AI Image Generation Function ---
-def generate_image_stability(prompt):
+def generate_image_stability(prompt, width=512, height=512):
     try:
         # Check if API key exists
         if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
@@ -61,8 +62,8 @@ def generate_image_stability(prompt):
             seed=12345,
             steps=50,
             cfg_scale=8.0,
-            width=512,
-            height=512,
+            width=width,
+            height=height,
             samples=1,
             sampler=generation.SAMPLER_K_DPMPP_2M
         )
@@ -287,6 +288,11 @@ if query and query.strip():
 
     if is_abusive_or_disrespectful(query):
         reply = random.choice(hindi_gaalis)
+    elif is_image_prompt(query):
+        img = generate_image_stability(query)
+        if img:
+            st.session_state.chat_history[selected_chat].append(("image", img))
+            st.rerun()
     else:
         past_convo = "\n".join(
             [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]
@@ -309,7 +315,7 @@ if query and query.strip():
         except Exception as e:
             reply = f"Error: {str(e)}"
 
-    st.session_state.chat_history[selected_chat].append(("assistant", reply))
+        st.session_state.chat_history[selected_chat].append(("assistant", reply))
     st.rerun()
 
 # --- Voice Output ---
@@ -358,4 +364,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+)

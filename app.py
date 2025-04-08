@@ -81,6 +81,11 @@ def generate_image_stability(prompt, width=512, height=512):
         st.error(f"Image generation failed: {str(e)}")
         return None
 
+# --- Check if text is an image prompt ---
+def is_image_prompt(text):
+    keywords = ["image", "photo", "draw", "picture", "painting"]
+    return any(keyword in text.lower() for keyword in keywords)
+
 st.markdown("""
     <style>
     body { background-color: #0f0f0f; color: #39ff14; }
@@ -364,4 +369,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-)
+    )

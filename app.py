@@ -72,7 +72,7 @@ def generate_image_stability(prompt, width=512, height=512, style="Realistic"):
 
         answers = stability_api.generate(
             prompt=prompt,
-            seed=12345,
+            seed=random.randint(0, 2**32 - 1),  # Ensure different seed for each generation
             steps=50,
             cfg_scale=8.0,
             width=width,
@@ -144,8 +144,8 @@ def generate_image_huggingface(prompt, width, height, style="Realistic", retries
             return None
 
 # --- Image Transformation Function ---
-def transform_image(image, style="Ghibli", width=512, height=512):
-    return generate_image_huggingface(prompt="", width=width, height=height, style=style)
+def transform_image(image, prompt, style="Ghibli", width=512, height=512):
+    return generate_image_huggingface(prompt=prompt, width=width, height=height, style=style)
 
 # --- Function to Parse User Input ---
 def parse_user_input(user_input):
@@ -410,7 +410,7 @@ if query and query.strip():
     if uploaded_image:
         with st.spinner("Image transforming..."):
             image = Image.open(uploaded_image)
-            transformed_img = transform_image(image, style, width, height)
+            transformed_img = transform_image(image, query, style, width, height)  # Pass the user prompt to the function
             if transformed_img:
                 st.session_state.chat_history[selected_chat].append(("image", transformed_img))
                 st.rerun()

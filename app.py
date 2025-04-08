@@ -12,6 +12,7 @@ from stability_sdk import client
 import io
 from PIL import Image
 import base64
+from transformers import pipeline
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -252,12 +253,12 @@ with tab1:
         # ... Add more creative gaalis
     ]
 
-    # --- Abuse Check ---
+    # --- Disrespect Detection ---
+    disrespect_detector = pipeline("text-classification", model="unitary/toxic-bert")
+
     def is_abusive_or_disrespectful(text):
-        text = text.lower()
-        abuse_keywords = ["madarchod", "bhosdi", "chutiya", "gaand", "bhenchod", "loda", "fuck", "suck", "stupid", "idiot"]
-        disrespect_keywords = ["tu kya", "tum kya", "bakwass", "chup", "gandu", "behen ke", "tatti", "chomu", "nalle", "jhatu"]
-        return any(word in text for word in abuse_keywords + disrespect_keywords)
+        result = disrespect_detector(text)[0]
+        return result['label'] == 'toxic' and result['score'] > 0.7
 
     # --- On Submit ---
     if query and query.strip():

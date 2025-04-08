@@ -8,8 +8,6 @@ import streamlit as st
 import requests
 import io
 from PIL import Image
-import base64
-import re
 import time
 from dotenv import load_dotenv
 import os
@@ -18,96 +16,97 @@ import os
 load_dotenv()
 
 # --- Page Config ---
-st.set_page_config(page_title="DigamberGPT", layout="centered")
+st.set_page_config(
+    page_title="DigamberGPT",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
 
-# Gemini AI Configuration with error handling
+# --- Gemini AI Configuration ---
 try:
     import google.generativeai as genai
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-2.0-flash")  # Using Gemini 2.0 Flash
-    st.success("✅ Gemini 2.0 Flash model loaded successfully!")
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    st.success("✅ Gemini 2.0 Flash loaded successfully!")
 except Exception as e:
     st.error(f"⚠️ Failed to load Gemini: {str(e)}")
     model = None
 
-# Sentiment Analysis with error handling
+# --- Sentiment Analysis with Better Model ---
 try:
     from transformers import pipeline
-    sentiment_pipeline = pipeline("sentiment-analysis")
+    sentiment_pipeline = pipeline(
+        "sentiment-analysis",
+        model="finiteautomata/bertweet-base-sentiment-analysis",
+        tokenizer="finiteautomata/bertweet-base-sentiment-analysis"
+    )
+    sentiment_enabled = True
+    st.success("✅ Sentiment analysis enabled")
 except Exception as e:
     sentiment_pipeline = None
-    st.warning("⚠️ Sentiment analysis disabled")
+    sentiment_enabled = False
+    st.warning(f"⚠️ Sentiment analysis disabled: {str(e)}")
 
-# Other required imports
+def analyze_sentiment(text):
+    """Analyze text sentiment with proper error handling"""
+    if not sentiment_enabled:
+        return None
+    
+    try:
+        result = sentiment_pipeline(text[:512])[0]  # Limit input size
+        return {
+            "label": result["label"],
+            "score": round(result["score"], 3)
+        }
+    except Exception as e:
+        st.error(f"⚠️ Sentiment analysis failed: {str(e)}")
+        return None
+
+# --- Other Required Imports ---
 from PyPDF2 import PdfReader
 from gtts import gTTS
 import uuid
 import emoji
 
 # --- Core Functions ---
-def generate_gemini_response(prompt):
-    """Generate response from Gemini 2.0 Flash"""
+def generate_response(prompt):
+    """Generate response from Gemini with sentiment analysis"""
     if not model:
-        return "Error: AI model not loaded"
+        return "Error: AI model not loaded", None
     
     try:
-        # Configure generation parameters for faster responses
-        generation_config = {
-            "temperature": 0.7,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 2048,
-        }
-        
         response = model.generate_content(
             prompt,
-            generation_config=generation_config,
-            stream=False
+            generation_config={
+                "temperature": 0.7,
+                "top_p": 0.95,
+                "max_output_tokens": 2048
+            }
         )
-        return response.text
+        sentiment = analyze_sentiment(response.text)
+        return response.text, sentiment
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
 
-def generate_image(prompt, style="Realistic", width=512, height=512):
+def generate_image(prompt, style="Realistic"):
     """Generate image using HuggingFace"""
     try:
-        api_token = os.getenv("HUGGINGFACE_API_TOKEN")
-        headers = {"Authorization": f"Bearer {api_token}"}
-        
-        model_map = {
-            "Anime": "nitrosocke/waifu-diffusion",
-            "Realistic": "stabilityai/stable-diffusion-xl-base-1.0",
-            "Ghibli": "nitrosocke/Ghibli-Diffusion",
-            "Cyberpunk": "DGSpitzer/Cyberpunk-Anime-Diffusion"
-        }
-        
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "width": width,
-                "height": height,
-                "num_inference_steps": 25
-            }
-        }
-        
         response = requests.post(
-            f"https://api-inference.huggingface.co/models/{model_map.get(style, 'stabilityai/stable-diffusion-xl-base-1.0')}",
-            headers=headers,
-            json=payload
+            f"https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+            headers={"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"},
+            json={"inputs": prompt}
         )
         response.raise_for_status()
-        
         img = Image.open(io.BytesIO(response.content))
         img_path = f"generated_{uuid.uuid4().hex}.png"
         img.save(img_path)
         return img_path
-        
     except Exception as e:
         st.error(f"⚠️ Image generation failed: {str(e)}")
         return None
 
 # --- UI Setup ---
-st.title("⚡ DigamberGPT (Gemini 2.0 Flash)")
+st.title("🤖 DigamberGPT with Sentiment Analysis")
 st.markdown("""
     <style>
     .stTextInput input {color: #4F8BF9;}
@@ -115,66 +114,76 @@ st.markdown("""
     .chat-message {padding: 10px; border-radius: 10px; margin: 5px 0;}
     .user-message {background-color: #2a2a2a; color: white;}
     .bot-message {background-color: #1a1a1a; color: #39ff14;}
+    .sentiment-positive {color: green;}
+    .sentiment-neutral {color: blue;}
+    .sentiment-negative {color: red;}
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize chat history
+# --- Chat History Initialization ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        if message["type"] == "text":
-            st.markdown(f'<div class="chat-message {message["role"]}-message">{message["content"]}</div>', 
-                       unsafe_allow_html=True)
-        elif message["type"] == "image":
-            st.image(message["content"], caption="Generated Image")
-
-# Chat input
-if prompt := st.chat_input("Message DigamberGPT..."):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "type": "text", "content": prompt})
-    
-    # Display user message immediately
-    with st.chat_message("user"):
-        st.markdown(f'<div class="chat-message user-message">{prompt}</div>', 
-                   unsafe_allow_html=True)
-    
-    # Determine response type
-    if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw", "banana"]):
-        with st.spinner("🖌️ Creating your image with Gemini 2.0 Flash..."):
-            image_path = generate_image(prompt)
-            if image_path:
-                st.session_state.messages.append({"role": "assistant", "type": "image", "content": image_path})
-                with st.chat_message("assistant"):
-                    st.image(image_path, caption="Generated Image")
-    else:
-        # Generate text response
-        with st.spinner("💡 Gemini 2.0 Flash is thinking..."):
-            response = generate_gemini_response(prompt)
-            st.session_state.messages.append({"role": "assistant", "type": "text", "content": response})
-            with st.chat_message("assistant"):
-                st.markdown(f'<div class="chat-message bot-message">{response}</div>', 
+# --- Display Chat Messages ---
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+        if "sentiment" in msg and msg["sentiment"]:
+            sentiment = msg["sentiment"]
+            if sentiment["label"] == "POS":
+                st.markdown(f'<span class="sentiment-positive">😊 Positive ({sentiment["score"]})</span>', 
                            unsafe_allow_html=True)
-                
-        # Optional text-to-speech
-        if st.toggle("🔊 Speak Response", False, key="tts_toggle"):
-            with st.spinner("🔊 Converting to speech..."):
-                try:
-                    tts = gTTS(text=response, lang='en')
-                    audio_file = f"response_{uuid.uuid4().hex}.mp3"
-                    tts.save(audio_file)
-                    st.audio(audio_file)
-                    os.remove(audio_file)
-                except Exception as e:
-                    st.error(f"⚠️ TTS failed: {str(e)}")
+            elif sentiment["label"] == "NEU":
+                st.markdown(f'<span class="sentiment-neutral">😐 Neutral ({sentiment["score"]})</span>', 
+                           unsafe_allow_html=True)
+            elif sentiment["label"] == "NEG":
+                st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', 
+                           unsafe_allow_html=True)
 
-# Sidebar controls
+# --- Chat Input ---
+if prompt := st.chat_input("Your message..."):
+    # Add user message
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    # Generate response
+    if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
+        with st.spinner("🎨 Creating image..."):
+            img_path = generate_image(prompt)
+            if img_path:
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": f"![Generated Image]({img_path})"
+                })
+                with st.chat_message("assistant"):
+                    st.image(img_path)
+    else:
+        with st.spinner("💭 Analyzing..."):
+            response, sentiment = generate_response(prompt)
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": response,
+                "sentiment": sentiment
+            })
+            with st.chat_message("assistant"):
+                st.markdown(response)
+                if sentiment:
+                    if sentiment["label"] == "POS":
+                        st.markdown(f'<span class="sentiment-positive">😊 Positive ({sentiment["score"]})</span>', 
+                                   unsafe_allow_html=True)
+                    elif sentiment["label"] == "NEU":
+                        st.markdown(f'<span class="sentiment-neutral">😐 Neutral ({sentiment["score"]})</span>', 
+                                   unsafe_allow_html=True)
+                    elif sentiment["label"] == "NEG":
+                        st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', 
+                                   unsafe_allow_html=True)
+
+# --- Sidebar Controls ---
 with st.sidebar:
     st.header("⚙️ Controls")
     
-    if st.button("🗑️ Clear Chat History"):
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
     
@@ -187,36 +196,45 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    if st.button("📤 Export Chat History"):
+    if st.button("📤 Export Chat", use_container_width=True):
         chat_text = "\n".join(
-            f"{m['role'].title()}: {m['content']}" 
-            for m in st.session_state.messages 
-            if m["type"] == "text"
+            f"{m['role']}: {m['content']}" 
+            for m in st.session_state.messages
         )
         st.download_button(
             "💾 Download as TXT",
             chat_text,
-            file_name="digamber_chat_history.txt"
+            file_name="digamber_chat.txt",
+            use_container_width=True
         )
     
     st.markdown("---")
-    st.markdown("**Model Info:** Gemini 2.0 Flash")
-    st.markdown("**Version:** 1.0")
+    tts_enabled = st.toggle("🔊 Enable Text-to-Speech")
+    if tts_enabled and st.session_state.messages:
+        last_msg = st.session_state.messages[-1]["content"]
+        tts = gTTS(text=last_msg, lang='en')
+        tts.save("temp_audio.mp3")
+        st.audio("temp_audio.mp3")
+    
+    st.markdown("---")
+    st.markdown("**Model Info**")
+    st.markdown("- Gemini 2.0 Flash")
+    st.markdown("- Sentiment Analysis")
+    st.markdown("- Version 2.1")
 
 # --- APK Download Section ---
 st.markdown("---")
-st.markdown("### DigamberGPT Android App")
-query_params = st.query_params
-is_app = query_params.get("app", ["false"])[0].lower() == "true"
-
-if is_app:
-    st.markdown(
-        """<button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>अपडेट उपलब्ध है</button>""",
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
-        <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
-        unsafe_allow_html=True
-    )
+st.markdown("### 📱 Mobile App")
+st.markdown("""
+<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
+<button style='
+    background-color: #4F8BF9;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    margin: 10px 0;
+'>Download Android APK</button>
+</a>
+""", unsafe_allow_html=True)

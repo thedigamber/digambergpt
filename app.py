@@ -44,7 +44,7 @@ model_fast = genai.GenerativeModel("gemini-2.0-flash")
 model_deep = genai.GenerativeModel("gemini-1.5-pro")
 
 # --- Stability AI Image Generation Function ---
-def generate_image_stability(prompt):
+def generate_image_stability(prompt, width=512, height=512):
     try:
         # Check if API key exists
         if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
@@ -61,8 +61,8 @@ def generate_image_stability(prompt):
             seed=12345,
             steps=50,
             cfg_scale=8.0,
-            width=512,
-            height=512,
+            width=width,
+            height=height,
             samples=1,
             sampler=generation.SAMPLER_K_DPMPP_2M
         )
@@ -92,7 +92,7 @@ def display_typing_effect(text, role="assistant"):
         typed += char
         message.markdown(f"<div class='chat-bubble'><strong>{role}:</strong> {typed}</div>", unsafe_allow_html=True)
         time.sleep(0.005)
-    st.session_state.chat_history.append({"role": role, "message": typed})
+    st.session_state.chat_history.append({"role": role, "message": typed, "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
 
 # --- Gaalis Set ---
 hindi_gaalis = [
@@ -227,3 +227,21 @@ if voice_toggle and st.session_state.chat_history:
         st.audio(audio_bytes, format="audio/mp3")
         audio_file.close()
         os.remove(filename)
+
+# --- Android APK Section ---
+st.markdown("---")
+st.markdown("### DigamberGPT Android App")
+query_params = st.query_params
+is_app = query_params.get("app", ["false"])[0].lower() == "true"
+
+if is_app:
+    st.markdown(
+        """<button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>अपडेट उपलब्ध है</button>""",
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
+        <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
+        unsafe_allow_html=True
+            )

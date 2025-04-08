@@ -1,4 +1,8 @@
 import streamlit as st
+
+# --- Page Config ---
+st.set_page_config(page_title="DigamberGPT", layout="centered")
+
 import google.generativeai as genai
 import time
 import random
@@ -18,12 +22,12 @@ try:
     from transformers import pipeline
     transformers_installed = True
 
-    # Verify the availability of the model
+    # Verify the availability of the alternative model
     try:
-        _ = pipeline("text-classification", model="unitary/toxic-bert")
+        _ = pipeline("sentiment-analysis")
         model_available = True
     except OSError as e:
-        st.error(f"Model 'unitary/toxic-bert' not available: {e}")
+        st.error(f"Sentiment analysis model not available: {e}")
         model_available = False
 except ImportError:
     transformers_installed = False
@@ -70,8 +74,6 @@ def generate_image_stability(prompt):
         st.error(f"Image generation failed: {str(e)}")
         return None
 
-# --- Page Config ---
-st.set_page_config(page_title="DigamberGPT", layout="centered")
 st.markdown("""
     <style>
     body { background-color: #0f0f0f; color: #39ff14; }
@@ -269,14 +271,14 @@ with tab1:
 
     # --- Disrespect Detection ---
     if transformers_installed and model_available:
-        disrespect_detector = pipeline("text-classification", model="unitary/toxic-bert")
+        disrespect_detector = pipeline("sentiment-analysis")
     else:
-        st.error("The 'transformers' library is not installed or the model 'unitary/toxic-bert' is not available. Please install it to enable disrespect detection.")
+        st.error("The 'transformers' library is not installed or the sentiment analysis model is not available. Please install it to enable disrespect detection.")
 
     def is_abusive_or_disrespectful(text):
         if transformers_installed and model_available:
             result = disrespect_detector(text)[0]
-            return result['label'] == 'toxic' and result['score'] > 0.7
+            return result['label'] == 'NEGATIVE' and result['score'] > 0.7
         return False  # Fallback if transformers is not installed or model is not available
 
     # --- On Submit ---
@@ -360,4 +362,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-        )
+    )

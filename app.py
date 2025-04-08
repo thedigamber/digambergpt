@@ -114,7 +114,8 @@ def generate_image_huggingface(prompt, width, height, style="Realistic"):
             "Realistic": "CompVis/stable-diffusion-v1-4",
             "Sci-Fi": "CompVis/stable-diffusion-v1-4",
             "Pixel": "nitrosocke/pixel-art-diffusion",
-            "Fantasy": "nitrosocke/fantasy-diffusion"
+            "Fantasy": "nitrosocke/fantasy-diffusion",
+            "Ghibli": "nitrosocke/Ghibli-Diffusion"
         }
 
         model = style_map.get(style, "CompVis/stable-diffusion-v1-4")
@@ -149,12 +150,12 @@ def transform_image(image, style="Ghibli", width=512, height=512):
 
         # Map styles to Hugging Face models
         style_map = {
-            "Ghibli": "dreambooth-ghibli",
+            "Ghibli": "nitrosocke/Ghibli-Diffusion",
             "Anime": "dreambooth-anime",
             "Cyberpunk": "dreambooth-cyberpunk"
         }
 
-        model = style_map.get(style, "dreambooth-ghibli")
+        model = style_map.get(style, "nitrosocke/Ghibli-Diffusion")
 
         # Prepare the image for the request
         buffered = io.BytesIO()

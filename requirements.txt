@@ -7,3 +7,5 @@ gTTS>=2.3.0
 PyPDF2>=3.0.0
 emoji>=2.0.0
 transformers>=4.25.0
+replicate>=0.6.0
+requests>=2.25.1

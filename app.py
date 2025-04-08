@@ -20,24 +20,23 @@ import base64
 # Try to import the transformers library
 try:
     from transformers import pipeline
-    transformers_installed = True
+    sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+    sentiment_enabled = True
+except Exception as e:
+    sentiment_pipeline = None
+    sentiment_enabled = False
+    print("Sentiment model loading failed:", e)
 
-    # Verify the availability of the alternative model
-    try:
-        sentiment_pipeline = pipeline("sentiment-analysis")
-        model_available = True
-    except OSError as e:
-        st.error(f"Sentiment analysis model not available: {e}")
-        model_available = False
-except ImportError:
-    transformers_installed = False
-
-# Local fallback sentiment analysis function
-def local_sentiment_analysis(text):
-    negative_words = ["bad", "terrible", "awful", "hate", "worst"]
-    positive_words = ["good", "great", "excellent", "love", "best"]
-    score = sum(word in text.lower() for word in positive_words) - sum(word in text.lower() for word in negative_words)
-    return {"label": "NEGATIVE" if score < 0 else "POSITIVE", "score": abs(score)}
+# Example usage
+def detect_sentiment(text):
+    if sentiment_enabled and sentiment_pipeline:
+        try:
+            result = sentiment_pipeline(text)[0]
+            return result["label"]
+        except Exception as e:
+            return "UNKNOWN"
+    else:
+        return "DISABLED"
 
 # --- Gemini API Setup ---
 genai.configure(api_key=st.secrets["gemini"]["api_key"])
@@ -279,19 +278,9 @@ with tab1:
     ]
 
     # --- Disrespect Detection ---
-    if transformers_installed and model_available:
-        disrespect_detector = sentiment_pipeline
-    else:
-        st.error("The 'transformers' library is not installed or the sentiment analysis model is not available. Please install it to enable disrespect detection.")
-        disrespect_detector = local_sentiment_analysis
-
     def is_abusive_or_disrespectful(text):
-        if transformers_installed and model_available:
-            result = disrespect_detector(text)[0]
-            return result['label'] == 'NEGATIVE' and result['score'] > 0.7
-        else:
-            result = disrespect_detector(text)
-            return result['label'] == 'NEGATIVE' and result['score'] > 0.7
+        sentiment = detect_sentiment(text)
+        return sentiment == "NEGATIVE"
 
     # --- On Submit ---
     if query and query.strip():
@@ -374,4 +363,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-            )
+    )

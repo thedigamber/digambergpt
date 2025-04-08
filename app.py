@@ -73,7 +73,7 @@ def generate_image_stability(prompt, width=512, height=512):
                 if artifact.finish_reason == generation.FILTER:
                     st.warning("Prompt blocked by safety filter. Try something else.")
                     return None
-                if artifact type == generation.ARTIFACT_IMAGE:
+                if artifact.type == generation.ARTIFACT_IMAGE:
                     img = Image.open(io.BytesIO(artifact.binary))
                     return img
 
@@ -337,11 +337,11 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
     if last_role == "assistant":
         tts = gTTS(text=last_response, lang='hi')
         filename = f"voice_{uuid.uuid4().hex}.mp3"
-        tts save(filename)
+        tts.save(filename)
         audio_file = open(filename, "rb")
         audio_bytes = audio_file.read()
         st.audio(audio_bytes, format="audio/mp3")
-        audio_file close()
+        audio_file.close()
         os.remove(filename)
 
 # --- Image Generation ---
@@ -364,7 +364,7 @@ if st.button("Image Banao", key="generate_img_btn"):
 st.markdown("---")
 st.markdown("### DigamberGPT Android App")
 query_params = st.query_params
-is_app = query_params get("app", ["false"])[0].lower() == "true"
+is_app = query_params.get("app", ["false"])[0].lower() == "true"
 
 if is_app:
     st.markdown(
@@ -376,4 +376,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-            )
+    )

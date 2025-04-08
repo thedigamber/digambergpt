@@ -494,4 +494,4 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         audio_bytes = audio_file.read()
         st.audio(audio_bytes, format="audio/mp3")
         audio_file.close()
-        os.remove(filename
+        os.remove(filename)

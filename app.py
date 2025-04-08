@@ -29,7 +29,7 @@ try:
     model = genai.GenerativeModel("gemini-2.0-flash")
     st.success("✅ Gemini 2.0 Flash loaded successfully!")
 except Exception as e:
-    st.error(f"⚠️ Failed to load Gemini: {str(e)}")
+    st.error(f"⚠️ Failed to load DigamberGPT: {str(e)}")
     model = None
 
 # --- Sentiment Analysis with Better Model ---

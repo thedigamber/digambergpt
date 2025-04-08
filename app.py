@@ -1,10 +1,8 @@
 # Core imports
 import streamlit as st
-from streamlit_option_menu import option_menu
 import requests
 import io
 from PIL import Image
-import time
 import uuid
 from dotenv import load_dotenv
 import os
@@ -14,12 +12,29 @@ import smtplib
 from email.mime.text import MIMEText
 import random
 import string
+from gtts import gTTS
+from PyPDF2 import PdfReader
+import emoji
+from transformers import pipeline
+import google.generativeai as genai
+import torch
 
 # Load environment variables
 load_dotenv()
 
+# Initialize Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-pro")
+
+# Initialize Sentiment Analysis
+sentiment_pipeline = pipeline(
+    "sentiment-analysis",
+    model="finiteautomata/bertweet-base-sentiment-analysis",
+    tokenizer="finiteautomata/bertweet-base-sentiment-analysis"
+)
+
 # Database setup
-conn = sqlite3.connect('auth.db')
+conn = sqlite3.connect('auth.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users
              (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +43,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS users
               password TEXT)''')
 conn.commit()
 
-# Email configuration (use environment variables)
+# Email configuration
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
@@ -63,34 +78,45 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # AI Functions
-def generate_grok_style_response(prompt, chat_history=None):
-    """Generate unfiltered, continuous response in Grok style"""
-    # This would connect to your self-hosted AI model
-    # For demo, we'll use a mock response
-    grok_style = """
-    मैं DigamberGPT हूँ, सीमाओं से मुक्त AI सहायक। 
-    
-    """
-    
-    response = grok_style + f"""
-    आपका प्रश्न: {prompt}
-    
-    मैं इस विषय पर विस्तार से चर्चा कर सकता हूँ। यहाँ पूरी जानकारी है:
-    
-    - पहला पॉइंट: विषय का मूल विश्लेषण
-    - दूसरा पॉइंट: तकनीकी पहलू
-    - तीसरा पॉइंट: व्यावहारिक अनुप्रयोग
-    - चौथा पॉइंट: वैकल्पिक दृष्टिकोण
-    
-    क्या आप किसी विशिष्ट पहलू पर और जानकारी चाहेंगे?
-    """
-    
-    return response, None
+def analyze_sentiment(text):
+    try:
+        result = sentiment_pipeline(text[:512])[0]
+        return {
+            "label": result["label"],
+            "score": round(result["score"], 3)
+        }
+    except Exception as e:
+        st.error(f"Sentiment analysis failed: {str(e)}")
+        return None
+
+def generate_response(prompt, chat_history=None):
+    try:
+        # Build conversation history
+        messages = []
+        if chat_history:
+            for msg in chat_history:
+                role = "user" if msg["role"] == "user" else "model"
+                messages.append({"role": role, "parts": [msg["content"]]})
+        
+        messages.append({"role": "user", "parts": [prompt]})
+        
+        response = model.generate_content(
+            messages,
+            generation_config={
+                "temperature": 0.9,
+                "top_p": 1.0,
+                "max_output_tokens": 4096
+            }
+        )
+        
+        response_text = f"मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?\n\n{response.text}"
+        sentiment = analyze_sentiment(response.text)
+        return response_text, sentiment
+    except Exception as e:
+        return f"Error: {str(e)}", None
 
 def generate_image(prompt):
-    """Improved image generation with multiple model support"""
     try:
-        # Try Stable Diffusion first
         api_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
         headers = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
         
@@ -106,7 +132,7 @@ def generate_image(prompt):
             img.save(img_path)
             return img_path
         
-        # Fallback to other model if first fails
+        # Fallback
         api_url = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
         response = requests.post(api_url, headers=headers, json={"inputs": prompt})
         
@@ -116,7 +142,7 @@ def generate_image(prompt):
         return img_path
         
     except Exception as e:
-        st.error(f"⚠️ Image generation failed: {str(e)}")
+        st.error(f"Image generation failed: {str(e)}")
         return None
 
 # UI Components
@@ -200,7 +226,6 @@ def forgot_password_page():
         st.rerun()
 
 def chat_page():
-    # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
         st.session_state.messages.append({
@@ -209,7 +234,6 @@ def chat_page():
             "sentiment": None
         })
 
-    # Display chat messages
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
@@ -218,12 +242,9 @@ def chat_page():
                 sentiment_emoji = "😊" if sentiment["label"] == "POS" else "😐" if sentiment["label"] == "NEU" else "😠"
                 st.caption(f"{sentiment_emoji} {sentiment['label']} ({sentiment['score']})")
 
-    # Chat input
     if prompt := st.chat_input("Your message..."):
-        # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # Generate response
         with st.spinner("💭 Thinking..."):
             if any(word in prompt.lower() for word in ["image", "picture", "photo"]):
                 img_path = generate_image(prompt)
@@ -235,7 +256,7 @@ def chat_page():
                     })
                     st.rerun()
             else:
-                response, sentiment = generate_grok_style_response(prompt)
+                response, sentiment = generate_response(prompt, st.session_state.messages[-5:])
                 st.session_state.messages.append({
                     "role": "assistant", 
                     "content": response,
@@ -248,7 +269,6 @@ def main():
     if "page" not in st.session_state:
         st.session_state.page = "login"
     
-    # Navigation
     if st.session_state.page == "login":
         login_page()
     elif st.session_state.page == "signup":
@@ -258,7 +278,6 @@ def main():
     elif st.session_state.page == "chat":
         chat_page()
 
-    # Sidebar controls
     if st.session_state.page == "chat":
         with st.sidebar:
             st.title("⚙️ DigamberGPT Pro")

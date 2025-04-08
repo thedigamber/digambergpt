@@ -101,7 +101,7 @@ def generate_image(prompt, width, height):
                 "height": height
             }
         }
-        response = requests.post("https://api-inference.huggingface.co/models/nitrosocke/porn-diffusion", headers=headers, json=data)
+        response = requests.post("https://api-inference.huggingface.co/models/CompVis/stable-diffusion-v1-4", headers=headers, json=data)
         response.raise_for_status()
         
         img_data = response.content
@@ -406,4 +406,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-    )
+            )

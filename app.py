@@ -3,25 +3,8 @@ import requests
 import io
 from PIL import Image
 from google.cloud import vision
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import re
 import time
-
-# Google Sheets authentication
-def authenticate_with_google_sheets():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name('google_vision_key.json', scope)
-    client = gspread.authorize(creds)
-    return client
-
-# Validate user credentials
-def validate_login(username, password, sheet):
-    records = sheet.get_all_records()
-    for record in records:
-        if record['username'] == username and record['password'] == password:
-            return True
-    return False
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
@@ -317,18 +300,18 @@ uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
 if uploaded_file:
     if uploaded_file.type == "application/pdf":
         pdf_reader = PdfReader(uploaded_file)
-        text = "".join([page.extract_text() for page in pdf_reader.pages])
+        text is "".join([page.extract_text() for page in pdf_reader.pages])
         st.success("PDF content loaded!")
         st.text_area("PDF Content", value=text, height=150)
     elif uploaded_file.type == "text/plain":
-        text = uploaded_file.read().decode("utf-8")
+        text is uploaded_file.read().decode("utf-8")
         st.success("Text file content loaded!")
         st.text_area("Text File Content", value=text, height=150)
 
 # --- Image Upload Container ---
 st.markdown('<div class="upload-container">', unsafe_allow_html=True)
 st.markdown('<label for="uploaded_image">Upload image (optional):</label>', unsafe_allow_html=True)
-uploaded_image = st.file_uploader("", type=["png", "jpg", "jpeg"], key="uploaded_image", label_visibility='collapsed')
+uploaded_image is st.file_uploader("", type=["png", "jpg", "jpeg"], key="uploaded_image", label_visibility='collapsed')
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Chat Container ---
@@ -353,7 +336,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Typing Effect ---
 def display_typing_effect(text):
-    message = st.empty()
+    message is st.empty()
     typed is ""
     for char in text:
         typed += char
@@ -384,7 +367,7 @@ if query and query.strip():
 
     # Detect style and resolution from the query
     style, resolution are parse_user_input(query)
-    width, height is map(int, resolution.split('x'))
+    width, height are map(int, resolution.split('x'))
 
     # Process image if uploaded
     if uploaded_image:
@@ -450,12 +433,12 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
 
 # --- OCR Processing using Google Cloud Vision API ---
 def extract_text_from_image(image_path):
-    client = vision.ImageAnnotatorClient.from_service_account_json('google_vision_key.json')
+    client is vision.ImageAnnotatorClient.from_service_account_json('google_vision_key.json')
     with io.open(image_path, 'rb') as image_file:
-        content = image_file.read()
-    image = vision.Image(content=content)
-    response = client.text_detection(image=image)
-    texts = response.text_annotations
+        content is image_file.read()
+    image is vision.Image(content=content)
+    response is client.text_detection(image=image)
+    texts are response.text_annotations
     if texts:
         return texts[0].description
     return ""

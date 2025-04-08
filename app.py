@@ -23,8 +23,12 @@ load_dotenv()
 # --- Authentication Setup ---
 if 'users_db' not in st.session_state:
     st.session_state.users_db = {
-        # username: [hashed_password, email]
-        "admin": ["8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", "admin@example.com"]  # password: "admin"
+        # username: [hashed_password, email, chat_history]
+        "admin": [
+            "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", 
+            "admin@example.com",
+            []
+        ]  # password: "admin"
     }
 
 def hash_password(password):
@@ -41,8 +45,8 @@ st.set_page_config(
 try:
     import google.generativeai as genai
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    st.success("✅ Gemini 2.0 Flash loaded successfully!")
+    model = genai.GenerativeModel("gemini-pro")  # Changed to gemini-pro for better performance
+    st.success("✅ Gemini Pro loaded successfully!")
 except Exception as e:
     st.error(f"⚠️ Failed to load Gemini: {str(e)}")
     model = None
@@ -76,39 +80,78 @@ def analyze_sentiment(text):
         return None
 
 # --- Core Functions ---
-def generate_response(prompt):
+def generate_response(prompt, chat_history=None):
     if not model:
         return "Error: AI model not loaded", None
     
     try:
+        # Build conversation history
+        messages = []
+        if chat_history:
+            for msg in chat_history:
+                role = "user" if msg["role"] == "user" else "model"
+                messages.append({"role": role, "parts": [msg["content"]]})
+        
+        messages.append({"role": "user", "parts": [prompt]})
+        
         response = model.generate_content(
-            prompt,
+            messages,
             generation_config={
-                "temperature": 0.7,
-                "top_p": 0.95,
-                "max_output_tokens": 2048
+                "temperature": 0.9,  # Increased for more creative responses
+                "top_p": 1.0,
+                "max_output_tokens": 4096
+            },
+            safety_settings={
+                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
             }
         )
+        
+        response_text = f"मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?\n\n{response.text}"
         sentiment = analyze_sentiment(response.text)
-        return response.text, sentiment
+        return response_text, sentiment
     except Exception as e:
         return f"Error: {str(e)}", None
 
 def generate_image(prompt):
     try:
-        api_token = os.getenv('HUGGINGFACE_API_TOKEN')
-        headers = {"Authorization": f"Bearer {api_token}"}
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-            headers=headers,
-            json={"inputs": prompt, "options": {"wait_for_model": True}},
-            timeout=30
-        )
-        response.raise_for_status()
-        img = Image.open(io.BytesIO(response.content))
-        img_path = f"generated_{uuid.uuid4().hex}.png"
-        img.save(img_path)
-        return img_path
+        # Try multiple models with fallback
+        models = [
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            "runwayml/stable-diffusion-v1-5",
+            "CompVis/stable-diffusion-v1-4"
+        ]
+        
+        for model_name in models:
+            try:
+                response = requests.post(
+                    f"https://api-inference.huggingface.co/models/{model_name}",
+                    headers={"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_TOKEN')}"},
+                    json={
+                        "inputs": prompt,
+                        "options": {
+                            "wait_for_model": True,
+                            "guidance_scale": 9,
+                            "num_inference_steps": 50
+                        }
+                    },
+                    timeout=45
+                )
+                
+                if response.status_code == 200:
+                    img = Image.open(io.BytesIO(response.content))
+                    img_path = f"generated_{uuid.uuid4().hex}.png"
+                    img.save(img_path)
+                    return img_path
+                
+            except Exception as e:
+                continue
+                
+        st.error("⚠️ All image generation attempts failed. Please try again later.")
+        return None
+        
     except Exception as e:
         st.error(f"⚠️ Image generation failed: {str(e)}")
         return None
@@ -126,6 +169,8 @@ def login_page():
                 if st.session_state.users_db[username][0] == hash_password(password):
                     st.session_state.user = username
                     st.session_state.page = "chat"
+                    # Load user's chat history
+                    st.session_state.messages = st.session_state.users_db[username][2]
                     st.success("Login successful!")
                     time.sleep(1)
                     st.rerun()
@@ -163,7 +208,11 @@ def signup_page():
             elif len(password) < 8:
                 st.error("Password too short (min 8 chars)!")
             else:
-                st.session_state.users_db[username] = [hash_password(password), email]
+                st.session_state.users_db[username] = [
+                    hash_password(password), 
+                    email,
+                    []  # Initialize empty chat history
+                ]
                 st.success("Account created! Please login")
                 time.sleep(1)
                 st.session_state.page = "login"
@@ -202,10 +251,19 @@ def forgot_password_page():
 def chat_page():
     st.title("🤖 DigamberGPT with Sentiment Analysis")
     
-    # Chat UI (your original code)
+    # Initialize chat history if not exists
     if "messages" not in st.session_state:
         st.session_state.messages = []
+        welcome_msg = {
+            "role": "assistant",
+            "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+            "sentiment": None
+        }
+        st.session_state.messages.append(welcome_msg)
+        # Save to user's history
+        st.session_state.users_db[st.session_state.user][2].append(welcome_msg)
 
+    # Display chat messages
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
@@ -218,48 +276,73 @@ def chat_page():
                 elif sentiment["label"] == "NEG":
                     st.markdown(f'<span class="sentiment-negative">😠 Negative ({sentiment["score"]})</span>', unsafe_allow_html=True)
 
+    # Chat input
     if prompt := st.chat_input("Your message..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Add user message
+        user_msg = {"role": "user", "content": prompt}
+        st.session_state.messages.append(user_msg)
+        st.session_state.users_db[st.session_state.user][2].append(user_msg)
         
         with st.spinner("💭 Analyzing..."):
             if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
                 img_path = generate_image(prompt)
                 if img_path:
-                    st.session_state.messages.append({
+                    img_msg = {
                         "role": "assistant", 
                         "content": f"![Generated Image]({img_path})"
-                    })
+                    }
+                    st.session_state.messages.append(img_msg)
+                    st.session_state.users_db[st.session_state.user][2].append(img_msg)
             else:
-                response, sentiment = generate_response(prompt)
-                st.session_state.messages.append({
+                response, sentiment = generate_response(prompt, st.session_state.messages[-10:])  # Last 10 messages as context
+                ai_msg = {
                     "role": "assistant", 
                     "content": response,
                     "sentiment": sentiment
-                })
+                }
+                st.session_state.messages.append(ai_msg)
+                st.session_state.users_db[st.session_state.user][2].append(ai_msg)
         st.rerun()
 
-    # Your original sidebar controls
+    # Sidebar controls
     with st.sidebar:
         st.header(f"👤 {st.session_state.user}")
         
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messages = []
+            st.session_state.users_db[st.session_state.user][2] = []
+            welcome_msg = {
+                "role": "assistant",
+                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                "sentiment": None
+            }
+            st.session_state.messages.append(welcome_msg)
+            st.session_state.users_db[st.session_state.user][2].append(welcome_msg)
             st.rerun()
         
         st.markdown("---")
-        st.subheader("Image Options")
-        img_style = st.selectbox("🎨 Style", ["Realistic", "Anime", "Ghibli", "Cyberpunk"], index=0)
+        st.subheader("🎨 Image Generation Tips")
+        st.markdown("""
+        - Be specific in your description
+        - Include style preferences (e.g., 'digital art', 'photorealistic')
+        - Example: "A cyberpunk cityscape at night with neon lights, digital art style"
+        """)
         
         st.markdown("---")
         if st.button("📤 Export Chat", use_container_width=True):
             chat_text = "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
-            st.download_button("💾 Download as TXT", chat_text, file_name="digamber_chat.txt", use_container_width=True)
+            st.download_button(
+                "💾 Download as TXT",
+                chat_text,
+                file_name=f"digamber_chat_{st.session_state.user}.txt",
+                use_container_width=True
+            )
         
         st.markdown("---")
         tts_enabled = st.toggle("🔊 Enable Text-to-Speech")
         if tts_enabled and st.session_state.messages:
             last_msg = st.session_state.messages[-1]["content"]
-            tts = gTTS(text=last_msg, lang='en')
+            tts = gTTS(text=last_msg, lang='hi' if any(char in last_msg for char in 'अआइईउऊऋएऐओऔकखगघचछजझटठडढतथदधनपफबभमयरलवशषसह') else 'en')
             tts.save("temp_audio.mp3")
             st.audio("temp_audio.mp3")
         
@@ -274,6 +357,7 @@ def main():
     if "page" not in st.session_state:
         st.session_state.page = "login"
     
+    # Custom CSS
     st.markdown("""
         <style>
         .stTextInput input {color: #4F8BF9;}
@@ -287,6 +371,7 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
+    # Page routing
     if st.session_state.page == "login":
         login_page()
     elif st.session_state.page == "signup":

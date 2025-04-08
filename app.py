@@ -1,5 +1,8 @@
 import streamlit as st
 import requests
+import io
+from PIL import Image
+import base64
 
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
@@ -14,9 +17,6 @@ import uuid
 import emoji
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from stability_sdk import client
-import io
-from PIL import Image
-import base64
 from datetime import datetime
 
 # Try to import the transformers library
@@ -134,6 +134,48 @@ def generate_image_huggingface(prompt, width, height, style="Realistic"):
         return img
     except Exception as e:
         st.error(f"Image generation failed: {str(e)}")
+        return None
+
+# --- Image Transformation Function ---
+def transform_image(image, style="Ghibli", width=512, height=512):
+    try:
+        # Access the API token from secrets
+        api_token = st.secrets["huggingface"]["api_token"]
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Map styles to Hugging Face models
+        style_map = {
+            "Ghibli": "dreambooth-ghibli",
+            "Anime": "dreambooth-anime",
+            "Cyberpunk": "dreambooth-cyberpunk"
+        }
+
+        model = style_map.get(style, "dreambooth-ghibli")
+
+        # Prepare the image for the request
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+
+        data = {
+            "inputs": img_str,
+            "options": {
+                "width": width,
+                "height": height
+            }
+        }
+        response = requests.post(f"https://api-inference.huggingface.co/models/{model}", headers=headers, json=data)
+        response.raise_for_status()
+        
+        img_data = response.content
+        img = Image.open(io.BytesIO(img_data))
+        
+        return img
+    except Exception as e:
+        st.error(f"Image transformation failed: {str(e)}")
         return None
 
 # --- Check if text is an image prompt ---
@@ -415,20 +457,15 @@ if st.button("Image Banao", key="generate_img_btn"):
             href = f'<a href="data:image/png;base64,{img_str}" download="generated_image.png">Download Image</a>'
             st.markdown(href, unsafe_allow_html=True)
 
-# --- APK Download Section ---
-st.markdown("---")
-st.markdown("### DigamberGPT Android App")
-query_params = st.query_params
-is_app = query_params.get("app", ["false"])[0].lower() == "true"
+# --- Image Upload and Transformation ---
+st.subheader("Upload Your Image for Style Transformation")
+uploaded_image = st.file_uploader("Upload an image (PNG/JPG):", type=["png", "jpg", "jpeg"])
+img_style_transform = st.selectbox("Transformation Style:", ["Ghibli", "Anime", "Cyberpunk"], index=0)
+img_resolution_transform = st.selectbox("Transformation Resolution:", ["512x512", "768x768", "1024x1024"], index=0)
 
-if is_app:
-    st.markdown(
-        """<button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>अपडेट उपलब्ध है</button>""",
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
-        <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
-        unsafe_allow_html=True
-        )
+if st.button("Transform Image", key="transform_img_btn"):
+    if uploaded_image:
+        with st.spinner("Image transforming..."):
+            image = Image.open(uploaded_image)
+            width, height = map(int, img_resolution_transform.split('x'))
+           

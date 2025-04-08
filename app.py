@@ -298,6 +298,10 @@ if query and query.strip():
         if img:
             st.session_state.chat_history[selected_chat].append(("image", img))
             st.rerun()
+        else:
+            reply = "Image generation failed due to insufficient balance. Please check your Stability AI account."
+            st.session_state.chat_history[selected_chat].append(("assistant", reply))
+            st.rerun()
     else:
         past_convo = "\n".join(
             [f"{'User' if r == 'user' else 'DigamberGPT'}: {m}" for r, m in st.session_state.chat_history[selected_chat]]

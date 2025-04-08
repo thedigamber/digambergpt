@@ -1,0 +1,37 @@
+/* Custom CSS for DigamberGPT */
+.stTextInput input {
+    color: #4F8BF9;
+}
+
+.stButton button {
+    background-color: #4F8BF9;
+    color: white;
+}
+
+.sentiment-positive {
+    color: green;
+}
+
+.sentiment-neutral {
+    color: blue;
+}
+
+.sentiment-negative {
+    color: red;
+}
+
+.chat-message {
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px 0;
+}
+
+.user-message {
+    background-color: #2a2a2a;
+    color: white;
+}
+
+.bot-message {
+    background-color: #1a1a1a;
+    color: #39ff14;
+}

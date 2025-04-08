@@ -1,6 +1,7 @@
+# Fix for distutils import error - must be at VERY TOP
 import sys
-import setuptools  # Provides distutils
-from distutils import util  # Explicit import
+import setuptools
+from distutils import util
 
 # Standard imports
 import streamlit as st
@@ -19,324 +20,203 @@ load_dotenv()
 # --- Page Config ---
 st.set_page_config(page_title="DigamberGPT", layout="centered")
 
-# Conditional imports with error handling
+# Gemini AI Configuration with error handling
 try:
     import google.generativeai as genai
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model_fast = genai.GenerativeModel("gemini-2.0-flash")  # Updated model names
-    model_deep = genai.GenerativeModel("gemini-1.5-pro-latest")
-except ImportError as e:
-    st.error(f"Failed to load Google Generative AI: {str(e)}")
-    model_fast = None
-    model_deep = None
+    model = genai.GenerativeModel("gemini-2.0-flash")  # Using Gemini 2.0 Flash
+    st.success("✅ Gemini 2.0 Flash model loaded successfully!")
+except Exception as e:
+    st.error(f"⚠️ Failed to load Gemini: {str(e)}")
+    model = None
 
+# Sentiment Analysis with error handling
 try:
     from transformers import pipeline
-    sentiment_pipeline = pipeline("sentiment-analysis", 
-                                model="distilbert-base-uncased-finetuned-sst-2-english")
-    sentiment_enabled = True
+    sentiment_pipeline = pipeline("sentiment-analysis")
 except Exception as e:
     sentiment_pipeline = None
-    sentiment_enabled = False
-    print("Sentiment analysis disabled:", e)
+    st.warning("⚠️ Sentiment analysis disabled")
 
-# Required utility imports
-import random
+# Other required imports
 from PyPDF2 import PdfReader
 from gtts import gTTS
 import uuid
 import emoji
 
-# --- Utility Functions ---
-def detect_sentiment(text):
-    if sentiment_enabled and sentiment_pipeline:
-        try:
-            result = sentiment_pipeline(text)[0]
-            return result["label"]
-        except Exception as e:
-            return "UNKNOWN"
-    return "DISABLED"
-
-def generate_image_huggingface(prompt, width, height, style="Realistic", retries=3):
+# --- Core Functions ---
+def generate_gemini_response(prompt):
+    """Generate response from Gemini 2.0 Flash"""
+    if not model:
+        return "Error: AI model not loaded"
+    
     try:
-        api_token = os.getenv("HUGGINGFACE_API_TOKEN")
-        headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
-        
-        style_map = {
-            "Anime": "nitrosocke/waifu-diffusion",
-            "Realistic": "CompVis/stable-diffusion-v1-4",
-            "Sci-Fi": "CompVis/stable-diffusion-v1-4",
-            "Pixel": "nitrosocke/pixel-art-diffusion",
-            "Fantasy": "nitrosocke/fantasy-diffusion",
-            "Ghibli": "nitrosocke/Ghibli-Diffusion"
+        # Configure generation parameters for faster responses
+        generation_config = {
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 2048,
         }
         
-        model = style_map.get(style, "CompVis/stable-diffusion-v1-4")
-        data = {"inputs": prompt, "options": {"width": width, "height": height}}
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config,
+            stream=False
+        )
+        return response.text
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+def generate_image(prompt, style="Realistic", width=512, height=512):
+    """Generate image using HuggingFace"""
+    try:
+        api_token = os.getenv("HUGGINGFACE_API_TOKEN")
+        headers = {"Authorization": f"Bearer {api_token}"}
+        
+        model_map = {
+            "Anime": "nitrosocke/waifu-diffusion",
+            "Realistic": "stabilityai/stable-diffusion-xl-base-1.0",
+            "Ghibli": "nitrosocke/Ghibli-Diffusion",
+            "Cyberpunk": "DGSpitzer/Cyberpunk-Anime-Diffusion"
+        }
+        
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "width": width,
+                "height": height,
+                "num_inference_steps": 25
+            }
+        }
         
         response = requests.post(
-            f"https://api-inference.huggingface.co/models/{model}", 
-            headers=headers, 
-            json=data
+            f"https://api-inference.huggingface.co/models/{model_map.get(style, 'stabilityai/stable-diffusion-xl-base-1.0')}",
+            headers=headers,
+            json=payload
         )
         response.raise_for_status()
         
         img = Image.open(io.BytesIO(response.content))
-        img_path = f"generated_image_{uuid.uuid4().hex}.png"
+        img_path = f"generated_{uuid.uuid4().hex}.png"
         img.save(img_path)
         return img_path
         
     except Exception as e:
-        if retries > 0:
-            time.sleep(5)
-            return generate_image_huggingface(prompt, width, height, style, retries - 1)
-        st.error(f"Image generation failed: {str(e)}")
+        st.error(f"⚠️ Image generation failed: {str(e)}")
         return None
 
-# --- Image Transformation Function ---
-def transform_image(image, prompt, style="Ghibli", width=512, height=512):
-    return generate_image_huggingface(prompt=prompt, width=width, height=height, style=style)
-
-# --- Function to Parse User Input ---
-def parse_user_input(user_input):
-    style_keywords = ["Ghibli", "Anime", "Cyberpunk", "Pixar", "Realistic", "Fantasy", "Sci-Fi", "Pixel"]
-    resolution_keywords = ["512x512", "768x768", "1024x1024"]
-    
-    style = "Realistic"
-    resolution = "512x512"
-    
-    for word in user_input.split():
-        if word in style_keywords:
-            style = word
-        if word in resolution_keywords:
-            resolution = word
-    
-    return style, resolution
-
-# --- Check if text is an image prompt ---
-def detect_image_intent(prompt):
-    image_keywords = ["generate", "image", "photo", "draw", "style", "picture", "art", "sketch", "scene", "dikhana", "tasveer"]
-    for keyword in image_keywords:
-        if keyword in prompt.lower():
-            return True
-    return False
-
-def detect_negative_intent(prompt):
-    negative_keywords = ["don't generate", "mat banana", "stop image", "no photo", "chhod de", "sirf baat", "chat kar", "no image"]
-    for keyword in negative_keywords:
-        if keyword in prompt.lower():
-            return True
-    return False
-
-def classify_intent(prompt):
-    if detect_image_intent(prompt) and not detect_negative_intent(prompt):
-        return 'image'
-    else:
-        return 'chat'
-
+# --- UI Setup ---
+st.title("⚡ DigamberGPT (Gemini 2.0 Flash)")
 st.markdown("""
     <style>
-    body { background-color: #0f0f0f; color: #39ff14; }
-    .stTextArea textarea { background-color: #1a1a1a; color: white; }
-    .stButton button { background-color: #39ff14; color: black; border-radius: 10px; }
-    .chat-bubble {
-        background-color: #1a1a1a; border-radius: 10px; padding: 10px;
-        margin: 5px 0; color: white; white-space: pre-wrap; word-wrap: break-word;
-    }
-    .tab-content { padding: 10px; }
-    .chat-container {
-        height: 60vh; /* Limit the height to 60vh */
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        padding-right: 10px;
-        border: none;
-        border-radius: 10px;
-        padding: 15px;
-        background-color: #0f0f0f;
-        scrollbar-width: thin;
-        scrollbar-color: #39ff14 #1a1a1a;
-    }
-    .chat-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    .chat-container::-webkit-scrollbar-thumb {
-        background-color: #39ff14;
-        border-radius: 10px;
-    }
-    .chat-container::-webkit-scrollbar-track {
-        background: #1a1a1a;
-    }
-    .chat-input-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background-color: #0f0f0f;
-        padding: 15px;
-        border-top: 1px solid #39ff14;
-        z-index: 100;
-    }
-    .upload-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 15px;
-        background-color: #0f0f0f;
-        border-bottom: 1px solid #39ff14;
-    }
-    .upload-container label {
-        color: #39ff14;
-        margin-right: 10px;
-    }
-    .upload-container input {
-        color: #39ff14;
-    }
+    .stTextInput input {color: #4F8BF9;}
+    .stButton button {background-color: #4F8BF9; color: white;}
+    .chat-message {padding: 10px; border-radius: 10px; margin: 5px 0;}
+    .user-message {background-color: #2a2a2a; color: white;}
+    .bot-message {background-color: #1a1a1a; color: #39ff14;}
     </style>
-    <script>
-    async function loadComponent() {
-        try {
-            const module = await import('/path/to/component.js');
-            module.default();
-        } catch (error) {
-            console.error('Error loading component:', error);
-        }
-    }
-    document.addEventListener("DOMContentLoaded", loadComponent);
-    </script>
 """, unsafe_allow_html=True)
 
-# --- Title & Avatar ---
-st.markdown("""
-    <div style="text-align: center;">
-        <img src="file-YNzgquZYNwMJUkodfgzJKp" width="100">
-    </div>
-    """, unsafe_allow_html=True)
-st.markdown("<h1 style='text-align: center; color:cyan;'>DigamberGPT</h1>", unsafe_allow_html=True)
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# --- Session Initialization ---
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = {"New Chat": []}
-if "selected_history" not in st.session_state:
-    st.session_state.selected_history = "New Chat"
-if "new_chat_created" not in st.session_state:
-    st.session_state.new_chat_created = False
-if "first_input" not in st.session_state:
-    st.session_state.first_input = True
+# Display chat messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        if message["type"] == "text":
+            st.markdown(f'<div class="chat-message {message["role"]}-message">{message["content"]}</div>', 
+                       unsafe_allow_html=True)
+        elif message["type"] == "image":
+            st.image(message["content"], caption="Generated Image")
 
-# --- Sidebar (Scrollable History Buttons) ---
+# Chat input
+if prompt := st.chat_input("Message DigamberGPT..."):
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "type": "text", "content": prompt})
+    
+    # Display user message immediately
+    with st.chat_message("user"):
+        st.markdown(f'<div class="chat-message user-message">{prompt}</div>', 
+                   unsafe_allow_html=True)
+    
+    # Determine response type
+    if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw", "banana"]):
+        with st.spinner("🖌️ Creating your image with Gemini 2.0 Flash..."):
+            image_path = generate_image(prompt)
+            if image_path:
+                st.session_state.messages.append({"role": "assistant", "type": "image", "content": image_path})
+                with st.chat_message("assistant"):
+                    st.image(image_path, caption="Generated Image")
+    else:
+        # Generate text response
+        with st.spinner("💡 Gemini 2.0 Flash is thinking..."):
+            response = generate_gemini_response(prompt)
+            st.session_state.messages.append({"role": "assistant", "type": "text", "content": response})
+            with st.chat_message("assistant"):
+                st.markdown(f'<div class="chat-message bot-message">{response}</div>', 
+                           unsafe_allow_html=True)
+                
+        # Optional text-to-speech
+        if st.toggle("🔊 Speak Response", False, key="tts_toggle"):
+            with st.spinner("🔊 Converting to speech..."):
+                try:
+                    tts = gTTS(text=response, lang='en')
+                    audio_file = f"response_{uuid.uuid4().hex}.mp3"
+                    tts.save(audio_file)
+                    st.audio(audio_file)
+                    os.remove(audio_file)
+                except Exception as e:
+                    st.error(f"⚠️ TTS failed: {str(e)}")
+
+# Sidebar controls
 with st.sidebar:
-    st.markdown("""
-        <style>
-        .chat-history {
-            max-height: 300px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-        .chat-history button {
-            width: 100%;
-            text-align: left;
-            margin-bottom: 5px;
-            background-color: #262626;
-            color: #39ff14;
-            border: none;
-            border-radius: 6px;
-            padding: 8px;
-        }
-        .chat-history button:hover {
-            background-color: #39ff14;
-            color: black;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("### Chat History")
-    st.markdown('<div class="chat-history">', unsafe_allow_html=True)
-
-    # Add "New Chat" button separately
-    if st.button("New Chat", key="new_chat_button"):
-        new_chat_name = f"Chat {len(st.session_state.chat_history)}"
-        st.session_state.chat_history[new_chat_name] = []
-        st.session_state.selected_history = new_chat_name
-        st.session_state.new_chat_created = True
+    st.header("⚙️ Controls")
+    
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.messages = []
         st.rerun()
+    
+    st.markdown("---")
+    st.subheader("Image Options")
+    img_style = st.selectbox(
+        "🎨 Style",
+        ["Realistic", "Anime", "Ghibli", "Cyberpunk"],
+        index=0
+    )
+    
+    st.markdown("---")
+    if st.button("📤 Export Chat History"):
+        chat_text = "\n".join(
+            f"{m['role'].title()}: {m['content']}" 
+            for m in st.session_state.messages 
+            if m["type"] == "text"
+        )
+        st.download_button(
+            "💾 Download as TXT",
+            chat_text,
+            file_name="digamber_chat_history.txt"
+        )
+    
+    st.markdown("---")
+    st.markdown("**Model Info:** Gemini 2.0 Flash")
+    st.markdown("**Version:** 1.0")
 
-    # Display existing chats
-    for key in [k for k in st.session_state.chat_history.keys() if k != "New Chat"]:
-        if st.button(key, key=key):
-            st.session_state.selected_history = key
-            st.session_state.new_chat_created = False
-            st.rerun()
+# --- APK Download Section ---
+st.markdown("---")
+st.markdown("### DigamberGPT Android App")
+query_params = st.query_params
+is_app = query_params.get("app", ["false"])[0].lower() == "true"
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    selected = st.session_state.selected_history
-
-    if selected != "New Chat" and not st.session_state.new_chat_created:
-        new_title = st.text_input("Rename Chat", value=selected, key="rename_input")
-        if st.button("Save Name"):
-            if new_title and new_title != selected:
-                st.session_state.chat_history[new_title] = st.session_state.chat_history.pop(selected)
-                st.session_state.selected_history = new_title
-                st.rerun()
-
-        export_text = ""
-        for role, msg in st.session_state.chat_history[selected]:
-            prefix = "You" if role == "user" else "DigamberGPT"
-            export_text += f"{prefix}: {msg}\n\n"
-
-        st.download_button("Export Chat (.txt)", export_text, file_name=f"{selected.replace(' ', '_')}.txt", mime="text/plain")
-
-        if st.button("Delete Chat"):
-            del st.session_state.chat_history[selected]
-            st.session_state.selected_history = "New Chat"
-            st.session_state.new_chat_created = True
-            st.rerun()
-
-# --- Options ---
-col1, col2 = st.columns(2)
-deep_think = col1.checkbox("Deep Think", value=False)
-search_enabled = col2.checkbox("Search", value=False)
-
-# --- File Upload --- (PDF/TXT)
-uploaded_file = st.file_uploader("Upload a file (PDF/TXT)", type=["pdf", "txt"])
-if uploaded_file:
-    if uploaded_file.type == "application/pdf":
-        pdf_reader = PdfReader(uploaded_file)
-        text = "".join([page.extract_text() for page in pdf_reader.pages])
-        st.success("PDF content loaded!")
-        st.text_area("PDF Content", value=text, height=150)
-    elif uploaded_file.type == "text/plain":
-        text = uploaded_file.read().decode("utf-8")
-        st.success("Text file content loaded!")
-        st.text_area("Text File Content", value=text, height=150)
-
-# --- Image Upload Container ---
-st.markdown('<div class="upload-container">', unsafe_allow_html=True)
-st.markdown('<label for="uploaded_image">Upload image (optional):</label>', unsafe_allow_html=True)
-uploaded_image = st.file_uploader("", type=["png", "jpg", "jpeg"], key="uploaded_image", label_visibility='collapsed')
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- Chat Container ---
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-
-# --- Display Chat ---
-current_chat = st.session_state.selected_history
-if current_chat in st.session_state.chat_history:
-    for role, msg in st.session_state.chat_history[current_chat]:
-        if role == "image":
-            st.markdown(f"![Generated Image]({msg})")
-        else:
-            with st.chat_message(role):
-                st.markdown(msg)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- Input Box ---
-st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-query = st.chat_input("Message DigamberGPT")
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- Typing Effect ---
-def display_typing_effect(text):
-    message = st.empty()
+if is_app:
+    st.markdown(
+        """<button disabled style='background-color:orange;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>अपडेट उपलब्ध है</button>""",
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
+        <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
+        unsafe_allow_html=True
+    )

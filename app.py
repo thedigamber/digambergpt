@@ -46,7 +46,7 @@ model_fast = genai.GenerativeModel("gemini-2.0-flash")
 model_deep = genai.GenerativeModel("gemini-1.5-pro")
 
 # --- Stability AI Image Generation Function ---
-def generate_image_stability(prompt, width=512, height=512):
+def generate_image_stability(prompt, width=512, height=512, style="Realistic"):
     try:
         # Check if API key exists
         if "stability" not in st.secrets or "key" not in st.secrets["stability"]:
@@ -58,6 +58,17 @@ def generate_image_stability(prompt, width=512, height=512):
             verbose=True,
         )
 
+        # Map styles to StabilityAI models
+        style_map = {
+            "Anime": "waifu-diffusion",
+            "Realistic": "stable-diffusion-v1-4",
+            "Sci-Fi": "stable-diffusion-v1-4",
+            "Pixel": "pixel-art-diffusion",
+            "Fantasy": "fantasy-diffusion"
+        }
+
+        model = style_map.get(style, "stable-diffusion-v1-4")
+
         answers = stability_api.generate(
             prompt=prompt,
             seed=12345,
@@ -66,6 +77,7 @@ def generate_image_stability(prompt, width=512, height=512):
             width=width,
             height=height,
             samples=1,
+            model=model,
             sampler=generation.SAMPLER_K_DPMPP_2M
         )
 
@@ -86,7 +98,7 @@ def generate_image_stability(prompt, width=512, height=512):
         return None
 
 # --- Hugging Face Image Generation Function ---
-def generate_image(prompt, width, height):
+def generate_image_huggingface(prompt, width, height, style="Realistic"):
     try:
         # Access the API token from secrets
         api_token = st.secrets["huggingface"]["api_token"]
@@ -94,6 +106,18 @@ def generate_image(prompt, width, height):
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json"
         }
+
+        # Map styles to Hugging Face models
+        style_map = {
+            "Anime": "nitrosocke/waifu-diffusion",
+            "Realistic": "CompVis/stable-diffusion-v1-4",
+            "Sci-Fi": "CompVis/stable-diffusion-v1-4",
+            "Pixel": "nitrosocke/pixel-art-diffusion",
+            "Fantasy": "nitrosocke/fantasy-diffusion"
+        }
+
+        model = style_map.get(style, "CompVis/stable-diffusion-v1-4")
+
         data = {
             "inputs": prompt,
             "options": {
@@ -101,7 +125,7 @@ def generate_image(prompt, width, height):
                 "height": height
             }
         }
-        response = requests.post("https://api-inference.huggingface.co/models/CompVis/stable-diffusion-v1-4", headers=headers, json=data)
+        response = requests.post(f"https://api-inference.huggingface.co/models/{model}", headers=headers, json=data)
         response.raise_for_status()
         
         img_data = response.content
@@ -373,14 +397,15 @@ if voice_toggle and current_chat in st.session_state.chat_history and st.session
         os.remove(filename)
 
 # --- Image Generation ---
-st.subheader("Image Generator (Hugging Face Model)")
+st.subheader("Image Generator (Multiple Styles)")
 img_prompt = st.text_input("Image ke liye koi bhi prompt likho (Hindi/English dono chalega):", key="img_prompt")
+img_style = st.selectbox("Image Style:", ["Anime", "Realistic", "Sci-Fi", "Pixel", "Fantasy"], index=1)
 img_resolution = st.selectbox("Image Resolution:", ["512x512", "768x768", "1024x1024"], index=0)
 
 if st.button("Image Banao", key="generate_img_btn"):
     with st.spinner("Image ban rahi hai..."):
         width, height = map(int, img_resolution.split('x'))
-        img = generate_image(img_prompt, width, height)
+        img = generate_image_huggingface(img_prompt, width, height, img_style)
         if img:
             st.image(img, caption="Tumhari Image")
             # Download link
@@ -406,4 +431,4 @@ else:
         """<a href="https://drive.google.com/uc?export=download&id=1cdDIcHpQf-gwX9y9KciIu3tNHrhLpoOr" target="_blank">
         <button style='background-color:green;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:16px;'>Download Android APK</button></a>""",
         unsafe_allow_html=True
-            )
+        )

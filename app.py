@@ -498,8 +498,21 @@ def signup_page():
             elif password != confirm_password:
                 st.error("⚠️ पासवर्ड और कंफर्म पासवर्ड मैच नहीं कर रहे!")
             else:
-               save_user_db(st.session_state.users_db)
-                st.success("✅ अकाउंट बन गया! अब लॉगिन करें।")
+               # Save new user data
+                st.session_state.users_db[username] = {
+                    "email": email,
+                    "password": hash_password(password),
+                    "premium": {"active": False, "expires": ""},
+                    "chat_history": [],
+                    "usage": {
+                        "day": datetime.now().strftime("%Y-%m-%d"),
+                        "day_count": 0,
+                        "hour": datetime.now().strftime("%Y-%m-%d %H:00"),
+                        "hour_count": 0
+                    }
+                }
+                save_user_db(st.session_state.users_db)
+                 st.success("✅ अकाउंट बन गया! अब लॉगिन करें।")
                 time.sleep(1)
                 st.session_state.page = "login"
                 st.rerun()

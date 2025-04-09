@@ -19,6 +19,10 @@ import random
 # Custom imports
 from auth.utils import get_user_db, save_user_db, hash_password
 
+# DeepSeek UI Components
+from streamlit.components.v1 import html
+import json
+
 # Constants
 FREE_DAILY_LIMIT = 150
 FREE_HOURLY_LIMIT = 30
@@ -73,12 +77,141 @@ def desi_abuse_engine(prompt):
 if 'users_db' not in st.session_state:
     st.session_state.users_db = get_user_db()
 
+# --- DeepSeek UI Styles ---
+def apply_deepseek_ui():
+    st.markdown("""
+    <style>
+    /* Main container */
+    .main {
+        background-color: #1a1a1a !important;
+        color: #e0e0e0 !important;
+    }
+    
+    /* Chat containers */
+    .stChatMessage {
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        margin: 8px 0 !important;
+        max-width: 85% !important;
+    }
+    
+    /* User message */
+    [data-testid="stChatMessage"][aria-label="user"] {
+        background-color: #2d2d2d !important;
+        margin-left: auto !important;
+        margin-right: 0 !important;
+        border-bottom-right-radius: 4px !important;
+    }
+    
+    /* Assistant message */
+    [data-testid="stChatMessage"][aria-label="assistant"] {
+        background-color: #252525 !important;
+        margin-left: 0 !important;
+        margin-right: auto !important;
+        border-bottom-left-radius: 4px !important;
+    }
+    
+    /* Chat input */
+    .stTextInput textarea {
+        background-color: #252525 !important;
+        color: #ffffff !important;
+        border-radius: 12px !important;
+        border: 1px solid #444 !important;
+        padding: 12px !important;
+    }
+    
+    /* Buttons */
+    .stButton button {
+        background-color: #3a3a3a !important;
+        color: #ffffff !important;
+        border-radius: 8px !important;
+        border: none !important;
+        padding: 8px 16px !important;
+        transition: all 0.2s !important;
+    }
+    
+    .stButton button:hover {
+        background-color: #4a4a4a !important;
+        transform: translateY(-1px) !important;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #1e1e1e !important;
+    }
+    
+    /* Markdown text */
+    .stMarkdown {
+        color: #e0e0e0 !important;
+        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+        line-height: 1.5 !important;
+    }
+    
+    /* Code blocks */
+    .stCodeBlock {
+        background-color: #252525 !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+    }
+    
+    /* Progress bars */
+    .stProgress > div > div > div {
+        background-color: #4CAF50 !important;
+    }
+    
+    /* Tooltips */
+    .stTooltip {
+        background-color: #333 !important;
+        color: white !important;
+        border-radius: 4px !important;
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .stChatMessage {
+            max-width: 90% !important;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- Typing Animation ---
+def typing_animation():
+    return """
+    <div class="typing-animation">
+        <div class="typing-dot" style="animation-delay: 0s"></div>
+        <div class="typing-dot" style="animation-delay: 0.2s"></div>
+        <div class="typing-dot" style="animation-delay: 0.4s"></div>
+    </div>
+    <style>
+    .typing-animation {
+        display: flex;
+        padding: 8px 0;
+    }
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #888;
+        border-radius: 50%;
+        margin: 0 2px;
+        animation: typing 1.4s infinite ease-in-out;
+    }
+    @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-5px); }
+    }
+    </style>
+    """
+
 # --- Page Config ---
 st.set_page_config(
     page_title="DigamberGPT - Desi AI with Attitude 💪",
     layout="centered",
     initial_sidebar_state="expanded"
 )
+
+# Apply DeepSeek UI styles
+apply_deepseek_ui()
 
 # --- Check Message Limits ---
 def check_message_limits(user):
@@ -137,7 +270,7 @@ def show_upgrade_modal():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💎 डेमो प्रीमियम", key="demo_upgrade"):
-                st.warning("असली फीचर्स के लिए UPI ID पर पेम���ंट करें")
+                st.warning("असली फीचर्स के लिए UPI ID पर पेमेंट करें")
         with col2:
             if st.button("💰 पे करें", key="real_upgrade"):
                 st.info("UPI ID: 7903762240@ptsb पर पेमेंट करके ट्रांजैक्शन ID भेजें")
@@ -372,7 +505,31 @@ def chat_page():
     user_data = st.session_state.users_db[st.session_state.current_user]
     is_premium = user_data.get("premium", {}).get("active", False)
 
-    st.title("🤖 DigamberGPT" + (" 💎" if is_premium else ""))
+    # DeepSeek-style header
+    st.markdown("""
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 12px;">
+                <path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2Z" fill="#4CAF50"/>
+                <path d="M12 6V18" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 12H18" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 600;">DigamberGPT</h1>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <span style="background-color: #333; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 8px;">
+                {status}
+            </span>
+            <button style="background: none; border: none; cursor: pointer;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#888"/>
+                    <path d="M19 15C20.6569 15 22 13.6569 22 12C22 10.3431 20.6569 9 19 9C17.3431 9 16 10.3431 16 12C16 13.6569 17.3431 15 19 15Z" fill="#888"/>
+                    <path d="M5 15C6.65685 15 8 13.6569 8 12C8 10.3431 6.65685 9 5 9C3.34315 9 2 10.3431 2 12C2 13.6569 3.34315 15 5 15Z" fill="#888"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    """.format(status="💎 PREMIUM" if is_premium else "FREE"), unsafe_allow_html=True)
 
     # Show premium status
     if is_premium:
@@ -414,13 +571,16 @@ def chat_page():
             user_data["chat_history"].append(welcome_msg)
             save_user_db(st.session_state.users_db)
 
-    # Display messages
+    # Display messages with typing effect
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+            if msg["role"] == "assistant" and msg.get("is_typing", False):
+                html(typing_animation())
+            else:
+                st.markdown(msg["content"])
 
-    # Chat input
-    if prompt := st.chat_input("type your message..."):
+    # Chat input with DeepSeek style
+    if prompt := st.chat_input("Type your message...", key="chat_input"):
         # Check for duplicate message
         if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:
             st.warning("Duplicate message detected!")
@@ -439,10 +599,24 @@ def chat_page():
         st.session_state.messages.append(user_msg)
         user_data["chat_history"].append(user_msg)
 
-        with st.spinner("💭 Generating response..."):
+        # Add temporary typing indicator
+        typing_msg = {
+            "role": "assistant",
+            "content": "",
+            "is_typing": True,
+            "premium": is_premium
+        }
+        st.session_state.messages.append(typing_msg)
+        st.rerun()
+
+        # Generate response
+        with st.spinner(""):
             if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
                 img_path = generate_image(prompt)
                 if img_path:
+                    # Remove typing indicator
+                    st.session_state.messages.pop()
+                    
                     img_msg = {
                         "role": "assistant",
                         "content": f"![Generated Image]({img_path})",
@@ -452,6 +626,10 @@ def chat_page():
                     user_data["chat_history"].append(img_msg)
             else:
                 response, _ = generate_response(prompt)
+                
+                # Remove typing indicator
+                st.session_state.messages.pop()
+                
                 ai_msg = {
                     "role": "assistant",
                     "content": response,
@@ -463,15 +641,28 @@ def chat_page():
         save_user_db(st.session_state.users_db)
         st.rerun()
 
-    # Sidebar
+    # Sidebar with DeepSeek style
     with st.sidebar:
-        st.header(f"👤 {st.session_state.current_user}")
+        st.markdown("""
+        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+            <div style="width: 40px; height: 40px; background-color: #4CAF50; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px; color: white; font-weight: bold;">
+                {initials}
+            </div>
+            <div>
+                <div style="font-weight: 600; font-size: 1rem;">{username}</div>
+                <div style="font-size: 0.8rem; color: #888;">{status}</div>
+            </div>
+        </div>
+        """.format(
+            initials=st.session_state.current_user[:2].upper(),
+            username=st.session_state.current_user,
+            status="💎 Premium" if is_premium else "Free User"
+        ), unsafe_allow_html=True)
 
-        if is_premium:
-            st.success("💎 Premium Member")
-        else:
-            st.warning(f"Free Tier ({len(user_data['chat_history'])}/{FREE_DAILY_LIMIT} messages)")
-            if st.button("💎 Upgrade to Premium", use_container_width=True):
+        st.markdown("---")
+
+        if not is_premium:
+            if st.button("💎 Upgrade to Premium", use_container_width=True, type="primary"):
                 st.session_state.show_upgrade = True
                 st.rerun()
 
@@ -487,7 +678,7 @@ def chat_page():
             st.rerun()
 
         st.markdown("---")
-        st.subheader("🎨 Premium Features")
+        st.markdown("### Features")
         for feature in PREMIUM_FEATURES.values():
             st.markdown(f"- {feature}")
 
@@ -516,15 +707,6 @@ def main():
     if "page" not in st.session_state:
         st.session_state.page = "login"
         st.session_state.show_upgrade = False
-
-    # Desi-style CSS
-    st.markdown("""
-    <style>
-    .stTextInput input {color: #FF9933;}
-    .stButton button {background-color: #FF9933; color: white; font-weight: bold;}
-    .stMarkdown {font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;}
-    </style>
-    """, unsafe_allow_html=True)
 
     # Page routing
     if st.session_state.page == "login":

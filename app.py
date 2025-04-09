@@ -93,31 +93,22 @@ def show_upgrade_modal():
         
         # Payment options
         st.markdown("### 💳 Payment Methods:")
-        st.write("Paytm/UPI: 7903762242@ptsb")
+        st.markdown("**Paytm/UPI:** `7903762240@ptsb`")
         
         # Demo mode warning
-        st.warning("DEMO MODE: For testing purposes, premium can be activated without payment")
+        st.warning("DEMO MODE: For testing only. Real premium requires payment")
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💎 Activate Premium (Demo)", key="demo_upgrade"):
-                activate_premium()
+                st.warning("This is demo mode only. For full features, please make payment to UPI ID above")
         with col2:
             if st.button("💰 Pay & Activate", key="real_upgrade"):
-                st.info("In a production app, this would redirect to payment gateway")
-                activate_premium()
+                st.info("Please make payment to UPI ID: 7903762240@ptsb and contact admin with transaction ID")
 
 def activate_premium():
-    """Activate premium subscription for the current user"""
-    st.session_state.users_db[st.session_state.current_user]["premium"] = {
-        "active": True,
-        "since": datetime.now().strftime("%Y-%m-%d"),
-        "expires": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
-    }
-    save_user_db(st.session_state.users_db)
-    st.success("🎉 Premium activated! Enjoy unlimited access for 1 month!")
-    time.sleep(1)
-    st.rerun()
+    """Only activate if payment is verified"""
+    st.error("Premium activation requires payment verification. Please contact admin after payment")
 
 # --- Gemini AI Configuration ---
 try:
@@ -179,7 +170,7 @@ def generate_response(prompt):
             safety_settings=safety_settings
         )
         
-        response_text = f"मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?\n\n{response.text}"
+        response_text = response.text  # Removed automatic welcome message
         
         # Add voice response for premium users
         if is_premium:

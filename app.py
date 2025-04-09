@@ -444,7 +444,50 @@ def main():
     if st.session_state.page == "login":
         login_page()
     elif st.session_state.page == "signup":
-        signup_page()
+
+def signup_page():
+    st.title("📝 DigamberGPT - नया अकाउंट बनाओ")
+    
+    with st.form("signup_form"):
+        username = st.text_input("Username (कम से कम 4 अक्षर)")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+
+        if st.form_submit_button("Sign Up"):
+            # Validate form inputs
+            if len(username) < 4:
+                st.error("⚠️ Username बहुत छोटा है (कम से कम 4 अक्षर होने चाहिए)!")
+            elif username in st.session_state.users_db:
+                st.error("⚠️ यह Username पहले से मौजूद है। कृपया नया Username डालें!")
+            elif len(password) < 8:
+                st.error("⚠️ पासवर्ड बहुत छोटा है। कम से कम 8 अक्षर का होना चाहिए!")
+            elif password != confirm_password:
+                st.error("⚠️ पासवर्ड और कंफर्म पासवर्ड मैच नहीं कर रहे!")
+            else:
+                # Save new user data
+                st.session_state.users_db[username] = {
+                    "email": email,
+                    "password": hash_password(password),
+                    "premium": {"active": False, "expires": ""},
+                    "chat_history": [],
+                    "usage": {
+                        "day": datetime.now().strftime("%Y-%m-%d"),
+                        "day_count": 0,
+                        "hour": datetime.now().strftime("%Y-%m-%d %H:00"),
+                        "hour_count": 0
+                    }
+                }
+                save_user_db(st.session_state.users_db)
+                st.success("✅ अकाउंट बन गया! अब लॉगिन करें।")
+                time.sleep(1)
+                st.session_state.page = "login"
+                st.rerun()
+
+    if st.button("🔙 Back to Login"):
+        st.session_state.page = "login"
+        st.rerun()
+
     elif st.session_state.page == "chat":
         if "current_user" not in st.session_state:
             st.session_state.page = "login"

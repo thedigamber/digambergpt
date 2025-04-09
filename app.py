@@ -279,36 +279,97 @@ def show_upgrade_modal():
 def show_admin_panel():
     with st.expander("🔧 Admin Panel", expanded=True):
         st.markdown("### User Management")
+        
+        # Add a create user option
+        if st.button("➕ Create New User"):
+            new_user = st.text_input("Enter new username")
+            new_pass = st.text_input("Enter password", type="password")
+            if st.button("Create"):
+                if new_user and new_pass:
+                    st.session_state.users_db[new_user] = {
+                        "email": "",
+                        "password": hash_password(new_pass),
+                        "premium": {"active": False, "expires": ""},
+                        "chat_history": [],
+                        "usage": {
+                            "day": datetime.now().strftime("%Y-%m-%d"),
+                            "day_count": 0,
+                            "hour": datetime.now().strftime("%Y-%m-%d %H:00"),
+                            "hour_count": 0
+                        }
+                    }
+                    save_user_db(st.session_state.users_db)
+                    st.success(f"User {new_user} created!")
+        
         selected_user = st.selectbox("Select User", list(st.session_state.users_db.keys()))
-
         user_data = st.session_state.users_db[selected_user]
+        
+        # Display and edit user details
+        st.markdown("### User Details")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            new_email = st.text_input("Email", value=user_data.get("email", ""))
+        
+        with col2:
+            new_pass = st.text_input("Change Password", type="password")
+        
+        if st.button("Update User Info"):
+            if new_email:
+                user_data["email"] = new_email
+            if new_pass:
+                user_data["password"] = hash_password(new_pass)
+            save_user_db(st.session_state.users_db)
+            st.success("User updated!")
+        
+        # Premium management
+        st.markdown("### Premium Management")
         is_premium = user_data.get("premium", {}).get("active", False)
-
+        
         if is_premium:
             expiry_date = user_data["premium"]["expires"]
             days_left = (datetime.strptime(expiry_date, "%Y-%m-%d") - datetime.now()).days
             st.success(f"💎 Premium User (Expires in {days_left} days)")
+            
+            new_expiry = st.date_input("Change Expiry Date", 
+                                     value=datetime.strptime(expiry_date, "%Y-%m-%d"))
+            
+            if st.button("Update Expiry"):
+                user_data["premium"]["expires"] = new_expiry.strftime("%Y-%m-%d")
+                save_user_db(st.session_state.users_db)
+                st.success("Expiry date updated!")
         else:
             st.warning("Free Tier User")
-
+        
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💎 Activate Premium", key=f"activate_{selected_user}"):
-                st.session_state.users_db[selected_user]["premium"] = {
+            if st.button("💎 Activate Premium"):
+                user_data["premium"] = {
                     "active": True,
                     "since": datetime.now().strftime("%Y-%m-%d"),
                     "expires": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
                 }
                 save_user_db(st.session_state.users_db)
                 st.success(f"Premium activated for {selected_user}!")
+        
         with col2:
-            if st.button("❌ Revoke Premium", key=f"revoke_{selected_user}"):
-                if "premium" in st.session_state.users_db[selected_user]:
-                    st.session_state.users_db[selected_user]["premium"]["active"] = False
+            if st.button("��� Revoke Premium"):
+                if "premium" in user_data:
+                    user_data["premium"]["active"] = False
                     save_user_db(st.session_state.users_db)
                     st.success(f"Premium revoked for {selected_user}!")
                 else:
                     st.warning("User doesn't have premium")
+        
+        # Danger zone
+        st.markdown("### Danger Zone")
+        if st.button("🗑️ Delete User", type="secondary"):
+            if selected_user == st.session_state.current_user:
+                st.error("You cannot delete yourself!")
+            else:
+                del st.session_state.users_db[selected_user]
+                save_user_db(st.session_state.users_db)
+                st.success(f"User {selected_user} deleted!")
 
 # --- Gemini AI Configuration ---
 try:
@@ -577,7 +638,7 @@ def chat_page():
             if msg["role"] == "assistant" and msg.get("is_typing", False):
                 html(typing_animation())
             else:
-                st.markdown(msg["content"])
+                st.markdown(msg["content"], unsafe_allow_html=True)
 
     # Chat input with DeepSeek style
     if prompt := st.chat_input("Type your message...", key="chat_input"):
@@ -598,6 +659,7 @@ def chat_page():
         }
         st.session_state.messages.append(user_msg)
         user_data["chat_history"].append(user_msg)
+        save_user_db(st.session_state.users_db)
 
         # Add temporary typing indicator
         typing_msg = {

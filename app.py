@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from PyPDF2 import PdfReader
 from gtts import gTTS
 import os
+import random
 
 # Custom imports
 from auth.utils import get_user_db, save_user_db, hash_password
@@ -24,23 +25,42 @@ if 'users_db' not in st.session_state:
 
 # --- Page Config ---
 st.set_page_config(
-    page_title="DigamberGPT Premium",
+    page_title="DigamberGPT - Desi AI with Attitude 💪",
     layout="centered",
     initial_sidebar_state="expanded"
 )
 
 # Constants
-FREE_DAILY_LIMIT = 150  # 150 messages per day
-FREE_HOURLY_LIMIT = 30   # 30 messages per hour
-PREMIUM_PRICE = 150      # ₹150 per month
+FREE_DAILY_LIMIT = 150  
+FREE_HOURLY_LIMIT = 30   
+PREMIUM_PRICE = 150      
 PREMIUM_FEATURES = {
-    "unlimited": "💎 Unlimited messages (no restrictions)",
-    "priority": "⚡ Priority processing (fast responses)",
-    "explicit": "🔞 Allow explicit content (no filters)",
-    "advanced": "🧠 Advanced AI models (better answers)",
-    "voice": "🎙️ Voice response generation",
-    "early": "🚀 Early access to new features"
+    "unlimited": "💎 बेरोकटोक messaging - बात करो जी भर के!",
+    "priority": "⚡ VIP treatment - तुरंत जवाब, बिना इंतज़ार",
+    "explicit": "🔞 Adult content - कोई रोक-टोक नहीं, पूरी आज़ादी",
+    "advanced": "🧠 Genius mode - गहरे जवाब, बेहतर समझ",
+    "voice": "🎙️ आवाज़ में जवाब - सुनो मेरी मस्त आवाज़",
+    "early": "🚀 नए फीचर्स पहले - VIP एक्सेस"
 }
+
+# Desi style responses
+WELCOME_MESSAGES = [
+    "अरे यार! मैं DigamberGPT - तुम्हारा सबसे मस्त AI दोस्त! बोलो क्या हाल चाल? 😎",
+    "ओए स्मार्टपंथी! मैं DigamberGPT - तुम्हारी क्या मदद करूँ? 🤙",
+    "अच्छा साहब, आ गए न! मैं DigamberGPT - बताओ क्या जानना है? 😏"
+]
+
+PREMIUM_WELCOME = [
+    "वाह! प्रीमियम यूजर साहब ने तशरीफ़ लाया! 💎 बोलो क्या चाहिए?",
+    "अच्छा जी! VIP मेहमान आए हैं! 😎 बताइए हुजूर क्या सेवा करूँ?",
+    "ओहो! पैसे वाले बंदे! 💰 बोलो क्या ख़ास चाहिए?"
+]
+
+ROASTS = [
+    "अरे भाई, इतना सीरियस क्यों हो रहे हो? थोड़ा हंसा करो! 😆",
+    "ऐसे सवाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
+    "यार तुम्हारे सवाल से तो ChatGPT भी थक जाए! 😴"
+]
 
 # --- Check Message Limits ---
 def check_message_limits(user):
@@ -86,70 +106,100 @@ def check_message_limits(user):
 
 # --- Premium Upgrade Modal ---
 def show_upgrade_modal():
-    with st.expander("💎 Upgrade to Premium (₹150/month)", expanded=True):
-        st.markdown("### 🚀 Premium Features:")
+    with st.expander("💎 Premium बनो - सिर्फ ₹150/महीना", expanded=True):
+        st.markdown("### 🚀 Premium के फायदे:")
         for feature in PREMIUM_FEATURES.values():
             st.markdown(f"- {feature}")
         
-        # Payment options
-        st.markdown("### 💳 Payment Methods:")
+        st.markdown("### 💳 पेमेंट करें:")
         st.markdown("**Paytm/UPI:** `7903762240@ptsb`")
         
-        # Demo mode warning
-        st.warning("DEMO MODE: For testing only. Real premium requires payment")
+        st.warning("DEMO MODE: असली प्रीमियम के लिए पेमेंट ज़रूरी है")
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💎 Activate Premium (Demo)", key="demo_upgrade"):
-                st.warning("This is demo mode only. For full features, please make payment to UPI ID above")
+            if st.button("💎 डेमो प्रीमियम", key="demo_upgrade"):
+                st.warning("असली फीचर्स के लिए UPI ID पर पेमेंट करें")
         with col2:
-            if st.button("💰 Pay & Activate", key="real_upgrade"):
-                st.info("Please make payment to UPI ID: 7903762240@ptsb and contact admin with transaction ID")
+            if st.button("💰 पे करें", key="real_upgrade"):
+                st.info("UPI ID: 7903762240@ptsb पर पेमेंट करके ट्रांजैक्शन ID भेजें")
 
-def activate_premium():
-    """Only activate if payment is verified"""
-    st.error("Premium activation requires payment verification. Please contact admin after payment")
+# --- Admin Controls ---
+def show_admin_panel():
+    with st.expander("🔧 Admin Panel", expanded=True):
+        st.markdown("### User Management")
+        selected_user = st.selectbox("Select User", list(st.session_state.users_db.keys()))
+        
+        user_data = st.session_state.users_db[selected_user]
+        is_premium = user_data.get("premium", {}).get("active", False)
+        
+        if is_premium:
+            expiry_date = user_data["premium"]["expires"]
+            days_left = (datetime.strptime(expiry_date, "%Y-%m-%d") - datetime.now()).days
+            st.success(f"💎 Premium User (Expires in {days_left} days)")
+        else:
+            st.warning("Free Tier User")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💎 Activate Premium", key=f"activate_{selected_user}"):
+                st.session_state.users_db[selected_user]["premium"] = {
+                    "active": True,
+                    "since": datetime.now().strftime("%Y-%m-%d"),
+                    "expires": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+                }
+                save_user_db(st.session_state.users_db)
+                st.success(f"Premium activated for {selected_user}!")
+        with col2:
+            if st.button("❌ Revoke Premium", key=f"revoke_{selected_user}"):
+                if "premium" in st.session_state.users_db[selected_user]:
+                    st.session_state.users_db[selected_user]["premium"]["active"] = False
+                    save_user_db(st.session_state.users_db)
+                    st.success(f"Premium revoked for {selected_user}!")
+                else:
+                    st.warning("User doesn't have premium")
 
 # --- Gemini AI Configuration ---
 try:
     import google.generativeai as genai
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-2.0-flash")  # Basic model for free users
-    premium_model = genai.GenerativeModel("gemini-2.0-flash")  # Better model for premium users
-    st.success("✅ AI Models loaded successfully!")
+    model = genai.GenerativeModel("gemini-1.0-pro")  
+    premium_model = genai.GenerativeModel("gemini-1.5-pro")  
+    st.success("✅ AI मोड चालू हो गया!")
 except Exception as e:
-    st.error(f"⚠️ Failed to load AI models: {str(e)}")
+    st.error(f"⚠️ AI लोड नहीं हुआ: {str(e)}")
     model = None
     premium_model = None
 
-# --- Core Functions ---
+# --- Core Chat Function ---
 def generate_response(prompt):
     if not model:
-        return "Error: AI model not loaded", None
+        return "Error: AI नहीं चल रहा", None
     
     try:
         user = st.session_state.current_user
         user_data = st.session_state.users_db[user]
         is_premium = user_data.get("premium", {}).get("active", False)
         
-        # Update usage counters for free users
+        # Premium check
         if not is_premium:
             user_data["usage"]["day_count"] += 1
             user_data["usage"]["hour_count"] += 1
             save_user_db(st.session_state.users_db)
         
+        # Build conversation context
         chat_history = user_data["chat_history"]
-        messages = []
+        messages = [{"role": "system", "parts": ["You are DigamberGPT - a bold, witty Hindi AI assistant with attitude. Respond in Hinglish with humor and sarcasm when appropriate."]}]
         
-        for msg in chat_history[-20:]:  # Last 20 messages as context
+        for msg in chat_history[-10:]:
             role = "user" if msg["role"] == "user" else "model"
             messages.append({"role": role, "parts": [msg["content"]]})
         
         messages.append({"role": "user", "parts": [prompt]})
         
-        # Configuration based on premium status
+        # Premium configurations
         generation_config = {
-            "temperature": 0.9,
+            "temperature": 1.2 if is_premium else 0.9,
             "top_p": 1.0,
             "max_output_tokens": 8192 if is_premium else 2048
         }
@@ -161,148 +211,83 @@ def generate_response(prompt):
             "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE"
         }
         
-        # Use premium model for premium users
         current_model = premium_model if is_premium else model
         
+        # Generate response
         response = current_model.generate_content(
             messages,
             generation_config=generation_config,
             safety_settings=safety_settings
         )
         
-        response_text = response.text  # Removed automatic welcome message
+        # Add premium enhancements
+        response_text = response.text
         
-        # Add voice response for premium users
         if is_premium:
             try:
+                # Premium voice response
                 tts = gTTS(text=response.text, lang='hi')
                 audio_path = f"response_{uuid.uuid4().hex}.mp3"
                 tts.save(audio_path)
-                response_text += f"\n\n🎧 Voice response:\n<audio controls><source src='{audio_path}' type='audio/mpeg'></audio>"
+                response_text += f"\n\n🎧 आवाज़ में सुनो:\n<audio controls><source src='{audio_path}' type='audio/mpeg'></audio>"
+                
+                # Premium visual enhancements
+                if random.random() > 0.7:  # 30% chance for extra premium content
+                    emoji_spice = "🔥" * random.randint(1,5)
+                    response_text += f"\n\n{emoji_spice} <span style='color:gold'>PREMIUM EXCLUSIVE:</span> {random.choice(['ये जानकारी सिर्फ VIPs के लिए!', 'तुम्हारे लिए खास जवाब!', 'पैसे वालों को मिलता है ये फायदा!'])} {emoji_spice}"
             except Exception as e:
-                response_text += f"\n\n⚠️ Voice generation failed: {str(e)}"
+                response_text += f"\n\n⚠️ आवाज़ नहीं बना पाया: {str(e)}"
         
         return response_text, None
     except Exception as e:
         return f"Error: {str(e)}", None
 
-def generate_image(prompt):
-    try:
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-            headers={"Authorization": f"Bearer {st.secrets['huggingface']['api_token']}"},
-            json={
-                "inputs": prompt,
-                "options": {
-                    "wait_for_model": True,
-                    "guidance_scale": 9,
-                    "num_inference_steps": 50
-                }
-            },
-            timeout=45
-        )
-        
-        if response.status_code == 200:
-            img = Image.open(io.BytesIO(response.content))
-            img_path = f"generated_{uuid.uuid4().hex}.png"
-            img.save(img_path)
-            return img_path
-        else:
-            st.error(f"⚠️ Image generation failed with status: {response.status_code}")
-            return None
-            
-    except Exception as e:
-        st.error(f"⚠️ Image generation failed: {str(e)}")
-        return None
-
 # --- Authentication Pages ---
 def login_page():
-    st.title("🔐 Login to DigamberGPT")
+    st.title("🔐 DigamberGPT में लॉगिन करो")
     
     with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        username = st.text_input("यूजरनेम")
+        password = st.text_input("पासवर्ड", type="password")
         
-        if st.form_submit_button("Login"):
+        if st.form_submit_button("लॉगिन"):
             if username in st.session_state.users_db:
                 if st.session_state.users_db[username]["password"] == hash_password(password):
                     st.session_state.current_user = username
                     st.session_state.page = "chat"
                     st.session_state.show_upgrade = False
                     
-                    # Initialize chat history
+                    # Initialize chat with style
                     if "messages" not in st.session_state:
                         st.session_state.messages = st.session_state.users_db[username]["chat_history"].copy()
                         if not st.session_state.messages:
+                            welcome = random.choice(PREMIUM_WELCOME) if st.session_state.users_db[username].get("premium", {}).get("active", False) else random.choice(WELCOME_MESSAGES)
                             welcome_msg = {
                                 "role": "assistant",
-                                "content": "मैं DigamberGPT, तुम्हारी क्या मदद कर सकता हूँ?",
+                                "content": welcome,
                                 "premium": st.session_state.users_db[username].get("premium", {}).get("active", False)
                             }
                             st.session_state.messages.append(welcome_msg)
                             st.session_state.users_db[username]["chat_history"].append(welcome_msg)
                             save_user_db(st.session_state.users_db)
                     
-                    st.success("Login successful!")
+                    st.success("चलो शुरू करते हैं!")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Invalid password!")
+                    st.error("गलत पासवर्ड! फिर से कोशिश करो")
             else:
-                st.error("Username not found")
+                st.error("यूजर नहीं मिला!")
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Create Account"):
+        if st.button("अकाउंट बनाओ"):
             st.session_state.page = "signup"
             st.rerun()
     with col2:
-        if st.button("Forgot Password"):
+        if st.button("पासवर्ड भूल गए"):
             st.session_state.page = "forgot"
             st.rerun()
-
-def signup_page():
-    st.title("📝 Create Account")
-    
-    with st.form("signup_form"):
-        username = st.text_input("Username (min 4 chars)")
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
-        confirm = st.text_input("Confirm Password", type="password")
-        
-        if st.form_submit_button("Sign Up"):
-            if username in st.session_state.users_db:
-                st.error("Username already exists!")
-            elif len(username) < 4:
-                st.error("Username too short!")
-            elif password != confirm:
-                st.error("Passwords don't match!")
-            elif len(password) < 8:
-                st.error("Password too short (min 8 chars)!")
-            else:
-                st.session_state.users_db[username] = {
-                    "password": hash_password(password),
-                    "email": email,
-                    "chat_history": [],
-                    "usage": {
-                        "day": datetime.now().strftime("%Y-%m-%d"),
-                        "day_count": 0,
-                        "hour": datetime.now().strftime("%Y-%m-%d %H:00"),
-                        "hour_count": 0
-                    }
-                }
-                
-                if save_user_db(st.session_state.users_db):
-                    st.success("Account created! Please login")
-                    time.sleep(1)
-                    st.session_state.page = "login"
-                    st.rerun()
-                else:
-                    st.error("Failed to save account. Please try again.")
-
-    if st.button("Back to Login"):
-        st.session_state.page = "login"
-        st.rerun()
 
 # --- Chat Page ---
 def chat_page():
@@ -344,7 +329,7 @@ def chat_page():
         if not st.session_state.messages:
             welcome_msg = {
                 "role": "assistant",
-                "content": "मैं DigamberGPT, तुम्हारी क्या मदद कर सकता हूँ?",
+                "content": random.choice(PREMIUM_WELCOME) if is_premium else random.choice(WELCOME_MESSAGES),
                 "premium": is_premium
             }
             st.session_state.messages.append(welcome_msg)
@@ -414,9 +399,10 @@ def chat_page():
                 st.rerun()
         
         if st.button("🗑️ Clear Chat", use_container_width=True):
+            welcome = random.choice(PREMIUM_WELCOME) if is_premium else random.choice(WELCOME_MESSAGES)
             st.session_state.messages = [{
                 "role": "assistant",
-                "content": "मैं DigamberGPT, तुम्हारी क्या मदद कर सकता हूँ?",
+                "content": welcome,
                 "premium": is_premium
             }]
             user_data["chat_history"] = st.session_state.messages.copy()
@@ -427,6 +413,10 @@ def chat_page():
         st.subheader("🎨 Premium Features")
         for feature in PREMIUM_FEATURES.values():
             st.markdown(f"- {feature}")
+        
+        # Admin panel for special users
+        if st.session_state.current_user in ["admin", "digamber"]:
+            show_admin_panel()
         
         st.markdown("---")
         if st.button("🔒 Logout", use_container_width=True):
@@ -441,14 +431,12 @@ def main():
         st.session_state.page = "login"
         st.session_state.show_upgrade = False
     
-    # Custom CSS
+    # Desi-style CSS
     st.markdown("""
         <style>
-        .stTextInput input {color: #4F8BF9;}
-        .stButton button {background-color: #4F8BF9; color: white;}
-        .sentiment-positive {color: green;}
-        .sentiment-neutral {color: blue;}
-        .sentiment-negative {color: red;}
+        .stTextInput input {color: #FF9933;}
+        .stButton button {background-color: #FF9933; color: white; font-weight: bold;}
+        .stMarkdown {font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;}
         </style>
     """, unsafe_allow_html=True)
 

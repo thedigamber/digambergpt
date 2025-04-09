@@ -163,8 +163,8 @@ def show_admin_panel():
 try:
     import google.generativeai as genai
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-1.0-pro")
-    premium_model = genai.GenerativeModel("gemini-1.5-pro")
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    premium_model = genai.GenerativeModel("gemini-2.0-flash")
     st.success("✅ AI मोड चालू हो गया!")
 except Exception as e:
     st.error(f"⚠️ AI लोड नहीं हुआ: {str(e)}")

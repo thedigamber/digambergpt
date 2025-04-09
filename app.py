@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime, timedelta
 from PyPDF2 import PdfReader
 from gtts import gTTS
+import os
 
 # Custom imports
 from auth.utils import get_user_db, save_user_db, hash_password
@@ -116,7 +117,7 @@ def show_upgrade_modal():
 try:
     import google.generativeai as genai
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-1.0-pro")  # Basic model for free users
     premium_model = genai.GenerativeModel("gemini-1.5-pro")  # Better model for premium users
     st.success("✅ AI Models loaded successfully!")
 except Exception as e:
@@ -178,14 +179,44 @@ def generate_response(prompt):
         if is_premium:
             try:
                 tts = gTTS(text=response.text, lang='hi')
-                tts.save("response.mp3")
-                response_text += "\n\n🎧 Voice response:\n<audio controls><source src='./response.mp3' type='audio/mpeg'></audio>"
+                audio_path = f"response_{uuid.uuid4().hex}.mp3"
+                tts.save(audio_path)
+                response_text += f"\n\n🎧 Voice response:\n<audio controls><source src='{audio_path}' type='audio/mpeg'></audio>"
             except Exception as e:
                 response_text += f"\n\n⚠️ Voice generation failed: {str(e)}"
         
         return response_text, None
     except Exception as e:
         return f"Error: {str(e)}", None
+
+def generate_image(prompt):
+    try:
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+            headers={"Authorization": f"Bearer {st.secrets['huggingface']['api_token']}"},
+            json={
+                "inputs": prompt,
+                "options": {
+                    "wait_for_model": True,
+                    "guidance_scale": 9,
+                    "num_inference_steps": 50
+                }
+            },
+            timeout=45
+        )
+        
+        if response.status_code == 200:
+            img = Image.open(io.BytesIO(response.content))
+            img_path = f"generated_{uuid.uuid4().hex}.png"
+            img.save(img_path)
+            return img_path
+        else:
+            st.error(f"⚠️ Image generation failed with status: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        st.error(f"⚠️ Image generation failed: {str(e)}")
+        return None
 
 # --- Authentication Pages ---
 def login_page():
@@ -232,6 +263,49 @@ def login_page():
         if st.button("Forgot Password"):
             st.session_state.page = "forgot"
             st.rerun()
+
+def signup_page():
+    st.title("📝 Create Account")
+    
+    with st.form("signup_form"):
+        username = st.text_input("Username (min 4 chars)")
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        confirm = st.text_input("Confirm Password", type="password")
+        
+        if st.form_submit_button("Sign Up"):
+            if username in st.session_state.users_db:
+                st.error("Username already exists!")
+            elif len(username) < 4:
+                st.error("Username too short!")
+            elif password != confirm:
+                st.error("Passwords don't match!")
+            elif len(password) < 8:
+                st.error("Password too short (min 8 chars)!")
+            else:
+                st.session_state.users_db[username] = {
+                    "password": hash_password(password),
+                    "email": email,
+                    "chat_history": [],
+                    "usage": {
+                        "day": datetime.now().strftime("%Y-%m-%d"),
+                        "day_count": 0,
+                        "hour": datetime.now().strftime("%Y-%m-%d %H:00"),
+                        "hour_count": 0
+                    }
+                }
+                
+                if save_user_db(st.session_state.users_db):
+                    st.success("Account created! Please login")
+                    time.sleep(1)
+                    st.session_state.page = "login"
+                    st.rerun()
+                else:
+                    st.error("Failed to save account. Please try again.")
+
+    if st.button("Back to Login"):
+        st.session_state.page = "login"
+        st.rerun()
 
 # --- Chat Page ---
 def chat_page():
@@ -306,14 +380,25 @@ def chat_page():
         user_data["chat_history"].append(user_msg)
         
         with st.spinner("💭 Generating response..."):
-            response, _ = generate_response(prompt)
-            ai_msg = {
-                "role": "assistant", 
-                "content": response,
-                "premium": is_premium
-            }
-            st.session_state.messages.append(ai_msg)
-            user_data["chat_history"].append(ai_msg)
+            if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
+                img_path = generate_image(prompt)
+                if img_path:
+                    img_msg = {
+                        "role": "assistant", 
+                        "content": f"![Generated Image]({img_path})",
+                        "premium": is_premium
+                    }
+                    st.session_state.messages.append(img_msg)
+                    user_data["chat_history"].append(img_msg)
+            else:
+                response, _ = generate_response(prompt)
+                ai_msg = {
+                    "role": "assistant", 
+                    "content": response,
+                    "premium": is_premium
+                }
+                st.session_state.messages.append(ai_msg)
+                user_data["chat_history"].append(ai_msg)
             
             save_user_db(st.session_state.users_db)
         
@@ -373,6 +458,8 @@ def main():
     # Page routing
     if st.session_state.page == "login":
         login_page()
+    elif st.session_state.page == "signup":
+        signup_page()
     elif st.session_state.page == "chat":
         if "current_user" not in st.session_state:
             st.session_state.page = "login"

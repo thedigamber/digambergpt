@@ -93,25 +93,31 @@ def show_upgrade_modal():
         
         # Payment options
         st.markdown("### 💳 Payment Methods:")
+        st.write("Paytm/UPI: 7903762242@ptsb")
+        
+        # Demo mode warning
+        st.warning("DEMO MODE: For testing purposes, premium can be activated without payment")
+        
         col1, col2 = st.columns(2)
         with col1:
-            st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Paytm_Logo_%28October_2021%29.svg/1200px-Paytm_Logo_%28October_2021%29.svg.png", width=100)
-            st.write("Paytm/UPI: 9876543210@paytm")
+            if st.button("💎 Activate Premium (Demo)", key="demo_upgrade"):
+                activate_premium()
         with col2:
-            st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/PayPal.svg/1200px-PayPal.svg.png", width=100)
-            st.write("PayPal: pay@digambergpt.com")
-        
-        if st.button("💎 Activate Premium Now", key="upgrade_button"):
-            # In a real app, you would verify payment here
-            st.session_state.users_db[st.session_state.current_user]["premium"] = {
-                "active": True,
-                "since": datetime.now().strftime("%Y-%m-%d"),
-                "expires": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
-            }
-            save_user_db(st.session_state.users_db)
-            st.success("🎉 Premium activated! Enjoy unlimited access for 1 month!")
-            time.sleep(2)
-            st.rerun()
+            if st.button("💰 Pay & Activate", key="real_upgrade"):
+                st.info("In a production app, this would redirect to payment gateway")
+                activate_premium()
+
+def activate_premium():
+    """Activate premium subscription for the current user"""
+    st.session_state.users_db[st.session_state.current_user]["premium"] = {
+        "active": True,
+        "since": datetime.now().strftime("%Y-%m-%d"),
+        "expires": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+    }
+    save_user_db(st.session_state.users_db)
+    st.success("🎉 Premium activated! Enjoy unlimited access for 1 month!")
+    time.sleep(1)
+    st.rerun()
 
 # --- Gemini AI Configuration ---
 try:

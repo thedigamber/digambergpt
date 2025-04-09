@@ -114,8 +114,8 @@ def activate_premium():
 try:
     import google.generativeai as genai
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-1.0-pro")  # Basic model for free users
-    premium_model = genai.GenerativeModel("gemini-1.5-pro")  # Better model for premium users
+    model = genai.GenerativeModel("gemini-2.0-flash")  # Basic model for free users
+    premium_model = genai.GenerativeModel("gemini-2.0-flash")  # Better model for premium users
     st.success("✅ AI Models loaded successfully!")
 except Exception as e:
     st.error(f"⚠️ Failed to load AI models: {str(e)}")
@@ -236,7 +236,7 @@ def login_page():
                         if not st.session_state.messages:
                             welcome_msg = {
                                 "role": "assistant",
-                                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                                "content": "मैं DigamberGPT, तुम्हारी क्या मदद कर सकता हूँ?",
                                 "premium": st.session_state.users_db[username].get("premium", {}).get("active", False)
                             }
                             st.session_state.messages.append(welcome_msg)
@@ -344,7 +344,7 @@ def chat_page():
         if not st.session_state.messages:
             welcome_msg = {
                 "role": "assistant",
-                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                "content": "मैं DigamberGPT, तुम्हारी क्या मदद कर सकता हूँ?",
                 "premium": is_premium
             }
             st.session_state.messages.append(welcome_msg)
@@ -357,7 +357,7 @@ def chat_page():
             st.markdown(msg["content"])
     
     # Chat input
-    if prompt := st.chat_input("Your message..."):
+    if prompt := st.chat_input("type your message..."):
         # Check for duplicate message
         if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:
             st.warning("Duplicate message detected!")
@@ -416,7 +416,7 @@ def chat_page():
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messages = [{
                 "role": "assistant",
-                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                "content": "मैं DigamberGPT, तुम्हारी क्या मदद कर सकता हूँ?",
                 "premium": is_premium
             }]
             user_data["chat_history"] = st.session_state.messages.copy()

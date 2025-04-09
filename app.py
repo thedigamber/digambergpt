@@ -16,6 +16,26 @@ from gtts import gTTS
 import os
 import random
 
+
+def desi_abuse_engine(prompt):
+    abusive_triggers = ["gaand", "chut", "lund", "bhenchod", "madarchod", "mc", "bc", "chod", "behen", "maa", "pm", "prime minister", "modi", "rahul", "yogi"]
+    if any(word in prompt.lower() for word in abusive_triggers):
+        roast_replies = [
+            "Abe teri soch pe laanat hai, chutiyon ke bhi baap nikle tum!",
+            "Gaand mara ke aaya lagta hai, itni ulti baatein kar raha hai!",
+            "Oye bhosdiwale, tere jaise chutiyo ko toh AI bhi ignore karta hai!",
+            "Jaa pehle apni maa se poochh le yeh sawaal, fir AI se baat kar!",
+            "Teri aukaat toh WhatsApp forward tak ki hai, DigamberGPT teri maa ka baap hai!",
+            "Tujh jaise bewakoof se toh Yogi bhi debate jeet jaye!",
+            "Modi ho ya Rahul, sab teri maa ka joke hai be!",
+            "Gaand mein keyboard ghusa ke likh raha hai kya?",
+            "Behen ke lund, kuchh bhi batega ab!",
+            "AI ko gaali deke kya kar lega? Teri toh soch bhi loan pe chalti hai."
+        ]
+        return random.choice(roast_replies)
+    return None
+
+
 # Custom imports
 from auth.utils import get_user_db, save_user_db, hash_password
 
@@ -173,6 +193,10 @@ except Exception as e:
 
 # --- Core Chat Function ---
 def generate_response(prompt):
+    abuse_reply = desi_abuse_engine(prompt)
+    if abuse_reply:
+        return abuse_reply, None
+
     if not model:
         return "Error: AI नहीं चल रहा", None
 
@@ -474,7 +498,7 @@ def signup_page():
             elif password != confirm_password:
                 st.error("⚠️ पासवर्ड और कंफर्म पासवर्ड मैच नहीं कर रहे!")
             else:
-                # Save new user data
+               # Save new user data
                 st.session_state.users_db[username] = {
                     "email": email,
                     "password": hash_password(password),

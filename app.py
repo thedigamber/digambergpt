@@ -46,7 +46,7 @@ def check_message_limits(user):
     user_data = st.session_state.users_db[user]
     
     # Premium users have no limits
-    if user_data.get("premium", False):
+    if user_data.get("premium", {}).get("active", False):
         return True
     
     # Initialize usage tracking
@@ -73,10 +73,12 @@ def check_message_limits(user):
     # Check limits
     if user_data["usage"]["day_count"] >= FREE_DAILY_LIMIT:
         st.error(f"⚠️ Daily limit reached ({FREE_DAILY_LIMIT} messages). Try again tomorrow or upgrade to premium!")
+        st.session_state.show_upgrade = True
         return False
     
     if user_data["usage"]["hour_count"] >= FREE_HOURLY_LIMIT:
         st.error(f"⚠️ Hourly limit reached ({FREE_HOURLY_LIMIT} messages). Try again in an hour or upgrade to premium!")
+        st.session_state.show_upgrade = True
         return False
     
     return True
@@ -109,6 +111,18 @@ def show_upgrade_modal():
             st.success("🎉 Premium activated! Enjoy unlimited access for 1 month!")
             time.sleep(2)
             st.rerun()
+
+# --- Gemini AI Configuration ---
+try:
+    import google.generativeai as genai
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    premium_model = genai.GenerativeModel("gemini-1.5-pro")  # Better model for premium users
+    st.success("✅ AI Models loaded successfully!")
+except Exception as e:
+    st.error(f"⚠️ Failed to load AI models: {str(e)}")
+    model = None
+    premium_model = None
 
 # --- Core Functions ---
 def generate_response(prompt):
@@ -173,17 +187,60 @@ def generate_response(prompt):
     except Exception as e:
         return f"Error: {str(e)}", None
 
-# [Rest of your authentication and chat page code remains similar, 
-# but make sure to update all references to premium status checks]
-
-# --- Enhanced Chat Page ---
-def chat_page():
-    st.title("🤖 DigamberGPT Premium" + (" 💎" if st.session_state.users_db[st.session_state.current_user].get("premium", {}).get("active", False) else ""))
+# --- Authentication Pages ---
+def login_page():
+    st.title("🔐 Login to DigamberGPT")
     
-    # Show premium status
+    with st.form("login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        
+        if st.form_submit_button("Login"):
+            if username in st.session_state.users_db:
+                if st.session_state.users_db[username]["password"] == hash_password(password):
+                    st.session_state.current_user = username
+                    st.session_state.page = "chat"
+                    st.session_state.show_upgrade = False
+                    
+                    # Initialize chat history
+                    if "messages" not in st.session_state:
+                        st.session_state.messages = st.session_state.users_db[username]["chat_history"].copy()
+                        if not st.session_state.messages:
+                            welcome_msg = {
+                                "role": "assistant",
+                                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                                "premium": st.session_state.users_db[username].get("premium", {}).get("active", False)
+                            }
+                            st.session_state.messages.append(welcome_msg)
+                            st.session_state.users_db[username]["chat_history"].append(welcome_msg)
+                            save_user_db(st.session_state.users_db)
+                    
+                    st.success("Login successful!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Invalid password!")
+            else:
+                st.error("Username not found")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Create Account"):
+            st.session_state.page = "signup"
+            st.rerun()
+    with col2:
+        if st.button("Forgot Password"):
+            st.session_state.page = "forgot"
+            st.rerun()
+
+# --- Chat Page ---
+def chat_page():
     user_data = st.session_state.users_db[st.session_state.current_user]
     is_premium = user_data.get("premium", {}).get("active", False)
     
+    st.title("🤖 DigamberGPT" + (" 💎" if is_premium else ""))
+    
+    # Show premium status
     if is_premium:
         expiry_date = user_data["premium"]["expires"]
         days_left = (datetime.strptime(expiry_date, "%Y-%m-%d") - datetime.now()).days
@@ -205,4 +262,123 @@ def chat_page():
         if day_count >= FREE_DAILY_LIMIT*0.8:  # Show upgrade prompt at 80% usage
             st.session_state.show_upgrade = True
     
-    # [Rest of your chat page implementation...]
+    # Show upgrade modal if needed
+    if st.session_state.get("show_upgrade", False):
+        show_upgrade_modal()
+        return
+    
+    # Initialize messages
+    if "messages" not in st.session_state:
+        st.session_state.messages = user_data["chat_history"].copy()
+        if not st.session_state.messages:
+            welcome_msg = {
+                "role": "assistant",
+                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                "premium": is_premium
+            }
+            st.session_state.messages.append(welcome_msg)
+            user_data["chat_history"].append(welcome_msg)
+            save_user_db(st.session_state.users_db)
+    
+    # Display messages
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+    
+    # Chat input
+    if prompt := st.chat_input("Your message..."):
+        # Check for duplicate message
+        if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:
+            st.warning("Duplicate message detected!")
+            st.stop()
+        
+        # Check message limit
+        if not check_message_limits(st.session_state.current_user):
+            st.rerun()
+        
+        # Add user message
+        user_msg = {
+            "role": "user", 
+            "content": prompt,
+            "premium": is_premium
+        }
+        st.session_state.messages.append(user_msg)
+        user_data["chat_history"].append(user_msg)
+        
+        with st.spinner("💭 Generating response..."):
+            response, _ = generate_response(prompt)
+            ai_msg = {
+                "role": "assistant", 
+                "content": response,
+                "premium": is_premium
+            }
+            st.session_state.messages.append(ai_msg)
+            user_data["chat_history"].append(ai_msg)
+            
+            save_user_db(st.session_state.users_db)
+        
+        st.rerun()
+
+    # Sidebar
+    with st.sidebar:
+        st.header(f"👤 {st.session_state.current_user}")
+        
+        if is_premium:
+            st.success("💎 Premium Member")
+        else:
+            st.warning(f"Free Tier ({len(user_data['chat_history'])}/{FREE_DAILY_LIMIT} messages)")
+            if st.button("💎 Upgrade to Premium", use_container_width=True):
+                st.session_state.show_upgrade = True
+                st.rerun()
+        
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.messages = [{
+                "role": "assistant",
+                "content": "मैं DigamberGPT हूँ, मैं तुम्हारी क्या मदद कर सकता हूँ?",
+                "premium": is_premium
+            }]
+            user_data["chat_history"] = st.session_state.messages.copy()
+            save_user_db(st.session_state.users_db)
+            st.rerun()
+        
+        st.markdown("---")
+        st.subheader("🎨 Premium Features")
+        for feature in PREMIUM_FEATURES.values():
+            st.markdown(f"- {feature}")
+        
+        st.markdown("---")
+        if st.button("🔒 Logout", use_container_width=True):
+            st.session_state.pop("current_user")
+            st.session_state.pop("messages", None)
+            st.session_state.page = "login"
+            st.rerun()
+
+# --- Main App ---
+def main():
+    if "page" not in st.session_state:
+        st.session_state.page = "login"
+        st.session_state.show_upgrade = False
+    
+    # Custom CSS
+    st.markdown("""
+        <style>
+        .stTextInput input {color: #4F8BF9;}
+        .stButton button {background-color: #4F8BF9; color: white;}
+        .sentiment-positive {color: green;}
+        .sentiment-neutral {color: blue;}
+        .sentiment-negative {color: red;}
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Page routing
+    if st.session_state.page == "login":
+        login_page()
+    elif st.session_state.page == "chat":
+        if "current_user" not in st.session_state:
+            st.session_state.page = "login"
+            st.rerun()
+        else:
+            chat_page()
+
+if __name__ == "__main__":
+    main()

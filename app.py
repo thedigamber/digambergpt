@@ -35,7 +35,7 @@ FREE_DAILY_LIMIT = 150
 FREE_HOURLY_LIMIT = 30
 PREMIUM_PRICE = 150
 PREMIUM_FEATURES = {
-    "unlimited": "💎 बेरोकटोक messaging - बात करो जी भर के!",
+    "unlimited": "💎 बेरोकटोक messaging - बात करो ��ी भर के!",
     "priority": "⚡ VIP treatment - तुरंत जवाब, बिना इंतज़ार",
     "explicit": "🔞 Adult content - कोई रोक-टोक नहीं, पूरी आज़ादी",
     "advanced": "🧠 Genius mode - गहरे जवाब, बेहतर समझ",
@@ -52,7 +52,7 @@ WELCOME_MESSAGES = [
 
 PREMIUM_WELCOME = [
     "वाह! प्रीमियम यूजर साहब ने तशरीफ़ लाया! 💎 बोलो क्या चाहिए?",
-    "अच्छा जी! VIP मेहमान आए हैं! 😎 बताइए हुजूर क्या सेवा करूँ?",
+    "अच्छा जी! VIP मेहमान आए हैं! 😎 बताइए हुजूर क��या सेवा करूँ?",
     "ओहो! पैसे वाले बंदे! 💰 बोलो क्या ख़ास चाहिए?"
 ]
 
@@ -187,9 +187,9 @@ def generate_response(prompt):
             user_data["usage"]["hour_count"] += 1
             save_user_db(st.session_state.users_db)
 
-        # Build conversation context
+        # Build conversation context (without system role)
         chat_history = user_data["chat_history"]
-        messages = [{"role": "system", "parts": ["You are DigamberGPT - a bold, witty Hindi AI assistant with attitude. Respond in Hinglish with humor and sarcasm when appropriate."]}]
+        messages = []
 
         for msg in chat_history[-10:]:
             role = "user" if msg["role"] == "user" else "model"

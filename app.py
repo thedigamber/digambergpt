@@ -28,47 +28,47 @@ FREE_DAILY_LIMIT = 150
 FREE_HOURLY_LIMIT = 30
 PREMIUM_PRICE = 150
 PREMIUM_FEATURES = {
-    "unlimited": "💎 बेरोकटोक messaging - बात करो जी भर के!",
-    "priority": "⚡ VIP treatment - तुरंत जवाब, बिना इंतज़ार",
-    "explicit": "🔞 Adult content - कोई रोक-टोक नहीं, पूरी आज़ादी",
-    "advanced": "🧠 Genius mode - गहरे जवाब, बेहतर समझ",
-    "voice": "🎙️ आवाज़ में जवाब - सुनो मेरी मस्त आवाज़",
-    "early": "🚀 नए फीचर्स पहले - VIP एक्सेस"
+    "unlimited": "💎 Unlimited messaging - chat without limits!",
+    "priority": "⚡ Priority responses - faster answers",
+    "explicit": "🔞 Adult content - no restrictions",
+    "advanced": "🧠 Genius mode - deeper understanding",
+    "voice": "🎙️ Voice responses - hear the answers",
+    "early": "🚀 Early access to new features"
 }
 
 # Desi style responses
 WELCOME_MESSAGES = [
-    "अरे यार! मैं DigamberGPT - तुम्हारा सबसे मस्त AI दोस्त! बोलो क्या हाल चाल? 😎",
-    "ओए स्मार्टपंथी! मैं DigamberGPT - तुम्हारी क्या मदद करूँ? 🤙",
-    "अच्छा साहब, आ गए न! मैं DigamberGPT - बताओ क्या जानना है? 😏"
+    "Hey there! I'm DigamberGPT - your AI friend! How can I help? 😎",
+    "Welcome smart one! I'm DigamberGPT - what do you need? 🤙",
+    "Ah, you're here! I'm DigamberGPT - what would you like to know? 😏"
 ]
 
 PREMIUM_WELCOME = [
-    "वाह! प्रीमियम यूजर साहब ने तशरीफ़ लाया! 💎 बोलो क्या चाहिए?",
-    "अच्छा जी! VIP मेहमान आए हैं! 😎 बताइए हुजूर क्या सेवा करूँ?",
-    "ओहो! पैसे वाले बंदे! 💰 बोलो क्या ख़ास चाहिए?"
+    "Wow! Premium user has arrived! 💎 What can I do for you?",
+    "Hello VIP guest! 😎 How may I assist you today?",
+    "Oh ho! Big spender here! 💰 What special service do you need?"
 ]
 
 ROASTS = [
-    "अरे भाई, इतना सीरियस क्यों हो रहे हो? 😆",
-    "ऐसे सवाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
-    "यार तुम्हारे सवाल से तो ChatGPT भी थक जाए! 😴"
+    "Hey bro, why so serious? 😆",
+    "If you ask questions like this, what will people think? 🤦‍♂️",
+    "Dude, even ChatGPT would get tired of your questions! 😴"
 ]
 
 def desi_abuse_engine(prompt):
     abusive_triggers = ["gaand", "chut", "lund", "bhenchod", "madarchod", "mc", "bc", "chod", "behen", "maa", "pm", "prime minister", "modi", "rahul", "yogi"]
     if any(word in prompt.lower() for word in abusive_triggers):
         roast_replies = [
-            "Abe teri soch pe laanat hai, chutiyon ke bhi baap nikle tum!",
-            "Gaand mara ke aaya lagta hai, itni ulti baatein kar raha hai!",
-            "Oye bhosdiwale, tere jaise chutiyo ko toh AI bhi ignore karta hai!",
-            "Jaa pehle apni maa se poochh le yeh sawaal, fir AI se baat kar!",
-            "Teri aukaat toh WhatsApp forward tak ki hai, DigamberGPT teri maa ka baap hai!",
-            "Tujh jaise bewakoof se toh Yogi bhi debate jeet jaye!",
-            "Modi ho ya Rahul, sab teri maa ka joke hai be!",
-            "Gaand mein keyboard ghusa ke likh raha hai kya?",
-            "Behen ke lund, kuchh bhi batega ab!",
-            "AI ko gaali deke kya kar lega? Teri toh soch bhi loan pe chalti hai."
+            "Your thinking is flawed, you're acting foolish!",
+            "You're talking nonsense, seems like you're confused!",
+            "Hey silly, even AI ignores people like you!",
+            "Go ask your mother this question first, then talk to AI!",
+            "Your level is only WhatsApp forwards, DigamberGPT is way above!",
+            "Even Yogi could win a debate against someone like you!",
+            "Whether Modi or Rahul, they're all jokes to you!",
+            "Are you typing with your keyboard in your mouth?",
+            "Brother, you'll say anything now!",
+            "What will you achieve by abusing AI? Your thinking itself is borrowed."
         ]
         return random.choice(roast_replies)
     return None
@@ -205,7 +205,7 @@ def typing_animation():
 
 # --- Page Config ---
 st.set_page_config(
-    page_title="DigamberGPT - Desi AI with Attitude 💪",
+    page_title="DigamberGPT - AI with Attitude 💪",
     layout="centered",
     initial_sidebar_state="expanded"
 )
@@ -242,14 +242,23 @@ def check_message_limits(user):
         user_data["usage"]["hour"] = current_hour
         user_data["usage"]["hour_count"] = 0
 
-    # Check limits
+    # Check limits with clearer messages
     if user_data["usage"]["day_count"] >= FREE_DAILY_LIMIT:
-        st.error(f"⚠️ Daily limit reached ({FREE_DAILY_LIMIT} messages). Try again tomorrow or upgrade to premium!")
+        st.error(f"""
+        ⚠️ Daily Limit Reached! ({user_data["usage"]["day_count"]}/{FREE_DAILY_LIMIT})
+        
+        You've used all {FREE_DAILY_LIMIT} free messages today.
+        Upgrade to premium for unlimited messaging!
+        """)
         st.session_state.show_upgrade = True
         return False
 
     if user_data["usage"]["hour_count"] >= FREE_HOURLY_LIMIT:
-        st.error(f"⚠️ Hourly limit reached ({FREE_HOURLY_LIMIT} messages). Try again in an hour or upgrade to premium!")
+        st.error(f"""
+        ⚠️ Hourly Limit Reached! ({user_data["usage"]["hour_count"]}/{FREE_HOURLY_LIMIT})
+        
+        Please wait 1 hour or upgrade to premium for instant access!
+        """)
         st.session_state.show_upgrade = True
         return False
 
@@ -257,23 +266,23 @@ def check_message_limits(user):
 
 # --- Premium Upgrade Modal ---
 def show_upgrade_modal():
-    with st.expander("💎 Premium बनो - सिर्फ ₹150/महीना", expanded=True):
-        st.markdown("### 🚀 Premium के फायदे:")
+    with st.expander("💎 Go Premium - Only ₹150/month", expanded=True):
+        st.markdown("### 🚀 Premium Benefits:")
         for feature in PREMIUM_FEATURES.values():
             st.markdown(f"- {feature}")
 
-        st.markdown("### 💳 पेमेंट करें:")
+        st.markdown("### 💳 Payment Options:")
         st.markdown("**Paytm/UPI:** `7903762240@ptsb`")
 
-        st.warning("DEMO MODE: असली प्रीमियम के लिए पेमेंट ज़रूरी है")
+        st.warning("DEMO MODE: Real premium requires payment")
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💎 डेमो प्रीमियम", key="demo_upgrade"):
-                st.warning("असली फीचर्स के लिए UPI ID पर पेमेंट करें")
+            if st.button("💎 Try Demo Premium", key="demo_upgrade"):
+                st.warning("For real features, please make payment to UPI ID")
         with col2:
-            if st.button("💰 पे करें", key="real_upgrade"):
-                st.info("UPI ID: 7903762240@ptsb पर पेमेंट करके ट्रांजैक्शन ID भेजें")
+            if st.button("💰 Make Payment", key="real_upgrade"):
+                st.info("Send payment to UPI ID: 7903762240@ptsb and share transaction ID")
 
 # --- Admin Controls ---
 def show_admin_panel():
@@ -353,7 +362,7 @@ def show_admin_panel():
                 st.success(f"Premium activated for {selected_user}!")
         
         with col2:
-            if st.button("��� Revoke Premium"):
+            if st.button("❌ Revoke Premium"):
                 if "premium" in user_data:
                     user_data["premium"]["active"] = False
                     save_user_db(st.session_state.users_db)
@@ -374,12 +383,17 @@ def show_admin_panel():
 # --- Gemini AI Configuration ---
 try:
     import google.generativeai as genai
-    genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    premium_model = genai.GenerativeModel("gemini-2.0-flash")
-    st.success("✅ AI मोड चालू हो गया!")
+    if "gemini" in st.secrets and "api_key" in st.secrets["gemini"]:
+        genai.configure(api_key=st.secrets["gemini"]["api_key"])
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        premium_model = genai.GenerativeModel("gemini-2.0-flash")
+        st.success("✅ AI model loaded successfully!")
+    else:
+        st.error("⚠️ Gemini API key not configured in secrets!")
+        model = None
+        premium_model = None
 except Exception as e:
-    st.error(f"⚠️ AI लोड नहीं हुआ: {str(e)}")
+    st.error(f"⚠️ Failed to load AI: {str(e)}")
     model = None
     premium_model = None
 
@@ -390,20 +404,14 @@ def generate_response(prompt):
         return abuse_reply, None
 
     if not model:
-        return "Error: AI नहीं चल रहा", None
+        return "Error: AI is not running", None
 
     try:
         user = st.session_state.current_user
         user_data = st.session_state.users_db[user]
         is_premium = user_data.get("premium", {}).get("active", False)
 
-        # Premium check
-        if not is_premium:
-            user_data["usage"]["day_count"] += 1
-            user_data["usage"]["hour_count"] += 1
-            save_user_db(st.session_state.users_db)
-
-        # Build conversation context (without system role)
+        # Build conversation context
         chat_history = user_data["chat_history"]
         messages = []
 
@@ -436,24 +444,27 @@ def generate_response(prompt):
             safety_settings=safety_settings
         )
 
-        # Add premium enhancements
-        response_text = response.text
-
+        # Build response with clear premium differences
+        premium_tag = "💎 PREMIUM RESPONSE 💎\n\n" if is_premium else ""
+        
         if is_premium:
+            response_text = f"{premium_tag}VIP Treatment:\n\n{response.text}\n\n"
+            response_text += "✨ Premium Benefits:\n"
+            response_text += "- Longer responses (up to 8192 tokens)\n"
+            response_text += "- Uncensored content\n"
+            response_text += "- Priority processing\n"
+            
+            # Add voice response
             try:
-                # Premium voice response
                 tts = gTTS(text=response.text, lang='hi')
                 audio_path = f"response_{uuid.uuid4().hex}.mp3"
                 tts.save(audio_path)
-                response_text += f"\n\n🎧 आवाज़ में सुनो:\n<audio controls><source src='{audio_path}' type='audio/mpeg'></audio>"
-
-                # Premium visual enhancements
-                if random.random() > 0.7:  # 30% chance for extra premium content
-                    emoji_spice = "🔥" * random.randint(1, 5)
-                    response_text += f"\n\n{emoji_spice} <span style='color:gold'>PREMIUM EXCLUSIVE:</span> {random.choice(['ये जानकारी सिर्फ VIPs के लिए!', 'तुम्हारे लिए खास जवाब!', 'पैसे वालों को मिलता है ये फायदा!'])} {emoji_spice}"
+                response_text += f"\n🎧 Audio Response:\n<audio controls><source src='{audio_path}' type='audio/mpeg'></audio>"
             except Exception as e:
-                response_text += f"\n\n⚠️ आवाज़ नहीं बना पाया: {str(e)}"
-
+                response_text += f"\n⚠️ Audio generation failed: {str(e)}"
+        else:
+            response_text = f"{response.text}\n\n(Free version - upgrade for full features)"
+            
         return response_text, None
     except Exception as e:
         return f"Error: {str(e)}", None
@@ -470,12 +481,12 @@ def generate_image(prompt):
 
 # --- Authentication Pages ---
 def login_page():
-    st.title("🔐 DigamberGPT में लॉगिन करो")
+    st.title("🔐 Login to DigamberGPT")
 
     with st.form("login_form"):
-        username = st.text_input("यूजरनेम")
-        password = st.text_input("पासवर्ड", type="password")
-        submitted = st.form_submit_button("लॉगिन")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login")
 
     if submitted:
         if username in st.session_state.users_db:
@@ -498,30 +509,30 @@ def login_page():
                         st.session_state.users_db[username]["chat_history"].append(welcome_msg)
                         save_user_db(st.session_state.users_db)
 
-                st.success("चलो शुरू करते हैं!")
+                st.success("Let's get started!")
                 time.sleep(1)
                 st.rerun()
             else:
-                st.error("गलत पासवर्ड! फिर से कोशिश करो")
+                st.error("Wrong password! Try again")
         else:
-            st.error("यूजर नहीं मिला!")
+            st.error("User not found!")
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("अकाउंट बनाओ"):
+        if st.button("Create Account"):
             st.session_state.page = "signup"
             st.rerun()
     with col2:
-        if st.button("पासवर्ड भूल गए"):
+        if st.button("Forgot Password"):
             st.session_state.page = "forgot"
             st.rerun()
 
 # --- Signup Page ---
 def signup_page():
-    st.title("📝 DigamberGPT - नया अकाउंट बनाओ")
+    st.title("📝 DigamberGPT - Create New Account")
 
     with st.form("signup_form"):
-        username = st.text_input("Username (कम से कम 4 अक्षर)")
+        username = st.text_input("Username (min 4 characters)")
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
         confirm_password = st.text_input("Confirm Password", type="password")
@@ -530,13 +541,13 @@ def signup_page():
     if submitted:
         # Validate form inputs
         if len(username) < 4:
-            st.error("⚠️ Username बहुत छोटा है (कम से कम 4 अक्षर होने चाहिए)!")
+            st.error("⚠️ Username too short (min 4 characters)!")
         elif username in st.session_state.users_db:
-            st.error("⚠️ यह Username पहले से मौजूद है। कृपया नया Username डालें!")
+            st.error("⚠️ Username already exists. Please choose another!")
         elif len(password) < 8:
-            st.error("⚠️ पासवर्ड बहुत छोटा है। कम से कम 8 अक्षर का होना चाहिए!")
+            st.error("⚠️ Password too short. Must be at least 8 characters!")
         elif password != confirm_password:
-            st.error("⚠️ पासवर्ड और कंफर्म पासवर्ड मैच नहीं कर रहे!")
+            st.error("⚠️ Password and confirmation don't match!")
         else:
             # Save new user data
             st.session_state.users_db[username] = {
@@ -552,7 +563,7 @@ def signup_page():
                 }
             }
             save_user_db(st.session_state.users_db)
-            st.success("✅ अकाउंट बन गया! अब लॉगिन करें।")
+            st.success("✅ Account created! Please login.")
             time.sleep(1)
             st.session_state.page = "login"
             st.rerun()
@@ -566,7 +577,7 @@ def chat_page():
     user_data = st.session_state.users_db[st.session_state.current_user]
     is_premium = user_data.get("premium", {}).get("active", False)
 
-    # DeepSeek-style header
+    # Header
     st.markdown("""
     <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; margin-bottom: 16px;">
         <div style="display: flex; align-items: center;">
@@ -640,7 +651,7 @@ def chat_page():
             else:
                 st.markdown(msg["content"], unsafe_allow_html=True)
 
-    # Chat input with DeepSeek style
+    # Chat input
     if prompt := st.chat_input("Type your message...", key="chat_input"):
         # Check for duplicate message
         if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:
@@ -703,7 +714,7 @@ def chat_page():
         save_user_db(st.session_state.users_db)
         st.rerun()
 
-    # Sidebar with DeepSeek style
+    # Sidebar
     with st.sidebar:
         st.markdown("""
         <div style="display: flex; align-items: center; margin-bottom: 16px;">
@@ -744,8 +755,17 @@ def chat_page():
         for feature in PREMIUM_FEATURES.values():
             st.markdown(f"- {feature}")
 
-        # Admin panel for special users
+        # Debug info for admins
         if st.session_state.current_user in ["admin", "digamber"]:
+            with st.expander("🐛 Debug Info"):
+                st.json({
+                    "current_user": st.session_state.current_user,
+                    "is_premium": is_premium,
+                    "model_status": "Loaded" if model else "Not Loaded",
+                    "usage": user_data.get("usage", {}),
+                    "last_message": st.session_state.messages[-1]["content"] if st.session_state.messages else None
+                })
+
             show_admin_panel()
 
         st.markdown("---")
@@ -757,7 +777,7 @@ def chat_page():
 
 # --- Forgot Password Page ---
 def forgot_page():
-    st.title("🔑 पासवर्ड रीसेट करें")
+    st.title("🔑 Reset Password")
     st.warning("This feature is not implemented yet")
     
     if st.button("🔙 Back to Login"):

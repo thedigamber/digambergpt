@@ -19,7 +19,7 @@
 ## Live Demo
 
 **Check it out here:**  
-[DigamberGPT - Live App](https://share.streamlit.io/thedigamber/digambergpt/main/digambergpt.py)
+[DigamberGPT - Live App](https://gptbythedigamber.streamlit.app)
 
 ---
 

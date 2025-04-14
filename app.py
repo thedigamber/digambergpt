@@ -630,16 +630,6 @@ def chat_page():
                 st.markdown(msg["content"], unsafe_allow_html=True)
 
     # Handle user input
-    # --- Optional Image Generation Section ---
-with st.expander("🖼️ Generate Image", expanded=False):
-    img_prompt = st.text_input("Image prompt", key="img_prompt")
-    if st.button("Generate Image", key="generate_image_btn"):
-        if img_prompt.strip():
-            image_data = generate_image(img_prompt)
-            if image_data:
-                st.image(image_data, caption="Generated Image", use_column_width=True)
-        else:
-            st.warning("Please enter a prompt to generate an image.")
     if prompt := st.chat_input("Type your message...", key="chat_input"):
         # Check for duplicate message
         if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:

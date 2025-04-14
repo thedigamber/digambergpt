@@ -51,7 +51,7 @@ PREMIUM_WELCOME = [
 
 ROASTS = [
     "अरे भाई, इतना सीरियस क्यों हो रहे हो? 😆",
-    "ऐसे सवाल पूछोगे तो लोग क्या क��ेंगे? 🤦‍♂️",
+    "ऐसे सवाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
     "यार तुम्हारे सवाल से तो ChatGPT भी थक जाए! 😴"
 ]
 
@@ -525,7 +525,7 @@ def signup_page():
         elif len(password) < 8:
             st.error("⚠️ पासवर्ड बहुत छोटा है। कम से कम 8 अक्षर का होना चाहिए!")
         elif password != confirm_password:
-            st.error("⚠️ पासवर्ड औ�� कंफर्म पासवर्ड मैच नहीं कर रहे!")
+            st.error("⚠️ पासवर्ड और कंफर्म पासवर्ड मैच नहीं कर रहे!")
         else:
             # Save new user data
             st.session_state.users_db[username] = {
@@ -633,9 +633,13 @@ def chat_page():
         }
         st.session_state.messages.append(user_msg)
         user_data["chat_history"].append(user_msg)
+        
+        # Update usage counters
+        user_data["usage"]["day_count"] += 1
+        user_data["usage"]["hour_count"] += 1
         save_user_db(st.session_state.users_db)
 
-        # Add typing indicator
+        # Show typing indicator
         typing_msg = {
             "role": "assistant",
             "content": "",
@@ -645,20 +649,20 @@ def chat_page():
         st.session_state.messages.append(typing_msg)
         st.rerun()
 
-        # Generate response
-        with st.spinner(""):
-            response, _ = generate_response(prompt)
-            
-            # Remove typing indicator and add actual response
-            st.session_state.messages.pop()
-            ai_msg = {
-                "role": "assistant",
-                "content": response,
-                "premium": is_premium
-            }
-            st.session_state.messages.append(ai_msg)
-            user_data["chat_history"].append(ai_msg)
-
+        # Generate and show response
+        response, _ = generate_response(prompt)
+        
+        # Remove typing indicator
+        st.session_state.messages.pop()
+        
+        # Add actual response
+        ai_msg = {
+            "role": "assistant",
+            "content": response,
+            "premium": is_premium
+        }
+        st.session_state.messages.append(ai_msg)
+        user_data["chat_history"].append(ai_msg)
         save_user_db(st.session_state.users_db)
         st.rerun()
 

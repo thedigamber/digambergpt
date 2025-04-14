@@ -406,32 +406,32 @@ def generate_response(prompt):
         return "Error: AI service is currently unavailable", None
 
     try:
-        user = st.session_state.current_user
-        user_data = st.session_state.users_db[user]
-        is_premium = user_data.get("premium", {}).get("active", False)
+    user = st.session_state.current_user
+    user_data = st.session_state.users_db[user]
+    is_premium = user_data.get("premium", {}).get("active", False)
 
-        # Build conversation context
-        messages = []
-        for msg in user_data["chat_history"][-10:]:
-            role = "user" if msg["role"] == "user" else "model"
-            messages.append({"role": role, "parts": [msg["content"]]})
-        messages.append({"role": "user", "parts": [prompt]})
+    # Build conversation context
+    messages = []
+    for msg in user_data["chat_history"][-10:]:
+        role = "user" if msg["role"] == "user" else "model"
+        messages.append({"role": role, "parts": [msg["content"]]})
+    messages.append({"role": "user", "parts": [prompt]})
 
-        # नया कोड (सभी सेफ्टी चेक हटाए गए):
-response = model.generate_content(
-    messages,
-    generation_config={
-        "temperature": 1.5,  # और ज्यादा creative/random responses
-        "top_p": 1.0,
-        "max_output_tokens": 8192
-    },
-    safety_settings={
-        "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-        "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-        "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-        "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
-    }
-)
+    # नया कोड (सभी सेफ्टी चेक हटाए गए):
+    response = model.generate_content(
+        messages,
+        generation_config={
+            "temperature": 1.5,  # और ज्यादा creative/random responses
+            "top_p": 1.0,
+            "max_output_tokens": 8192
+        },
+        safety_settings={
+    "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+    "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+    "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
+        }
+    )
 
         # Process response
         if not response.text:

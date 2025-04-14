@@ -15,13 +15,13 @@ from PyPDF2 import PdfReader
 from gtts import gTTS
 import os
 import random
+import json
 
 # Custom imports
 from auth.utils import get_user_db, save_user_db, hash_password
 
 # DeepSeek UI Components
 from streamlit.components.v1 import html
-import json
 
 # Constants
 FREE_DAILY_LIMIT = 150
@@ -51,7 +51,7 @@ PREMIUM_WELCOME = [
 
 ROASTS = [
     "अरे भाई, इतना सीरियस क्यों हो रहे हो? 😆",
-    "ऐसे सवाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
+    "ऐसे सवाल पूछोगे तो लोग क्या क��ेंगे? 🤦‍♂️",
     "यार तुम्हारे सवाल से तो ChatGPT भी थक जाए! 😴"
 ]
 
@@ -353,7 +353,7 @@ def show_admin_panel():
                 st.success(f"Premium activated for {selected_user}!")
         
         with col2:
-            if st.button("��� Revoke Premium"):
+            if st.button("❌ Revoke Premium"):
                 if "premium" in user_data:
                     user_data["premium"]["active"] = False
                     save_user_db(st.session_state.users_db)
@@ -375,7 +375,7 @@ def show_admin_panel():
 try:
     import google.generativeai as genai
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash")  # Using stable version
     premium_model = genai.GenerativeModel("gemini-2.0-flash")
     st.success("✅ AI मोड चालू हो गया!")
 except Exception as e:
@@ -383,80 +383,69 @@ except Exception as e:
     model = None
     premium_model = None
 
-# --- Core Chat Function ---
+# --- Fixed Core Chat Function ---
 def generate_response(prompt):
+    # First check for abusive content
     abuse_reply = desi_abuse_engine(prompt)
     if abuse_reply:
         return abuse_reply, None
 
     if not model:
-        return "Error: AI नहीं चल रहा", None
+        return "Error: AI service is currently unavailable", None
 
     try:
         user = st.session_state.current_user
         user_data = st.session_state.users_db[user]
         is_premium = user_data.get("premium", {}).get("active", False)
 
-        # Premium check
-        if not is_premium:
-            user_data["usage"]["day_count"] += 1
-            user_data["usage"]["hour_count"] += 1
-            save_user_db(st.session_state.users_db)
-
-        # Build conversation context (without system role)
-        chat_history = user_data["chat_history"]
+        # Build conversation context
         messages = []
-
-        for msg in chat_history[-10:]:
+        for msg in user_data["chat_history"][-10:]:
             role = "user" if msg["role"] == "user" else "model"
             messages.append({"role": role, "parts": [msg["content"]]})
-
         messages.append({"role": "user", "parts": [prompt]})
 
-        # Premium configurations
-        generation_config = {
-            "temperature": 1.2 if is_premium else 0.9,
-            "top_p": 1.0,
-            "max_output_tokens": 8192 if is_premium else 2048
-        }
-
-        safety_settings = {
-            "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
-            "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
-            "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
-            "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE"
-        }
-
-        current_model = premium_model if is_premium else model
-
         # Generate response
-        response = current_model.generate_content(
+        response = model.generate_content(
             messages,
-            generation_config=generation_config,
-            safety_settings=safety_settings
+            generation_config={
+                "temperature": 1.2 if is_premium else 0.9,
+                "top_p": 1.0,
+                "max_output_tokens": 8192 if is_premium else 2048
+            },
+            safety_settings={
+                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
+                "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE"
+            }
         )
 
-        # Add premium enhancements
-        response_text = response.text
+        # Process response
+        if not response.text:
+            return "Sorry, I couldn't generate a response. Please try again.", None
 
+        response_text = response.text
+        
+        # Add premium features
         if is_premium:
             try:
-                # Premium voice response
-                tts = gTTS(text=response.text, lang='hi')
-                audio_path = f"response_{uuid.uuid4().hex}.mp3"
-                tts.save(audio_path)
-                response_text += f"\n\n🎧 आवाज़ में सुनो:\n<audio controls><source src='{audio_path}' type='audio/mpeg'></audio>"
-
-                # Premium visual enhancements
-                if random.random() > 0.7:  # 30% chance for extra premium content
-                    emoji_spice = "🔥" * random.randint(1, 5)
-                    response_text += f"\n\n{emoji_spice} <span style='color:gold'>PREMIUM EXCLUSIVE:</span> {random.choice(['ये जानकारी सिर्फ VIPs के लिए!', 'तुम्हारे लिए खास जवाब!', 'पैसे वालों को मिलता है ये फायदा!'])} {emoji_spice}"
+                # Voice response
+                tts = gTTS(text=response_text, lang='hi')
+                audio_file = f"response_{uuid.uuid4().hex}.mp3"
+                tts.save(audio_file)
+                response_text += f"\n\n🎧 Audio Response:\n<audio controls><source src='{audio_file}' type='audio/mpeg'>"
+                
+                # Visual enhancement
+                if random.random() > 0.7:
+                    response_text += "\n\n🌟 <span style='color:gold'>Premium Exclusive Content</span> 🌟"
             except Exception as e:
-                response_text += f"\n\n⚠️ आवाज़ नहीं बना पाया: {str(e)}"
+                response_text += f"\n\n⚠️ Audio generation failed: {str(e)}"
 
         return response_text, None
+
     except Exception as e:
-        return f"Error: {str(e)}", None
+        return f"Error generating response: {str(e)}", None
 
 # --- Image Generation Function ---
 def generate_image(prompt):
@@ -516,7 +505,6 @@ def login_page():
             st.session_state.page = "forgot"
             st.rerun()
 
-
 # --- Signup Page ---
 def signup_page():
     st.title("📝 DigamberGPT - नया अकाउंट बनाओ")
@@ -537,7 +525,7 @@ def signup_page():
         elif len(password) < 8:
             st.error("⚠️ पासवर्ड बहुत छोटा है। कम से कम 8 अक्षर का होना चाहिए!")
         elif password != confirm_password:
-            st.error("⚠️ पासवर्ड और कंफर्म पासवर्ड मैच नहीं कर रहे!")
+            st.error("⚠️ पासवर्ड औ�� कंफर्म पासवर्ड मैच नहीं कर रहे!")
         else:
             # Save new user data
             st.session_state.users_db[username] = {
@@ -562,12 +550,12 @@ def signup_page():
         st.session_state.page = "login"
         st.rerun()
 
-# --- Chat Page ---
+# --- Fixed Chat Page ---
 def chat_page():
     user_data = st.session_state.users_db[st.session_state.current_user]
     is_premium = user_data.get("premium", {}).get("active", False)
 
-    # DeepSeek-style header
+    # Header and premium status display
     st.markdown("""
     <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; margin-bottom: 16px;">
         <div style="display: flex; align-items: center;">
@@ -582,13 +570,6 @@ def chat_page():
             <span style="background-color: #333; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 8px;">
                 {status}
             </span>
-            <button style="background: none; border: none; cursor: pointer;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#888"/>
-                    <path d="M19 15C20.6569 15 22 13.6569 22 12C22 10.3431 20.6569 9 19 9C17.3431 9 16 10.3431 16 12C16 13.6569 17.3431 15 19 15Z" fill="#888"/>
-                    <path d="M5 15C6.65685 15 8 13.6569 8 12C8 10.3431 6.65685 9 5 9C3.34315 9 2 10.3431 2 12C2 13.6569 3.34315 15 5 15Z" fill="#888"/>
-                </svg>
-            </button>
         </div>
     </div>
     """.format(status="💎 PREMIUM" if is_premium else "FREE"), unsafe_allow_html=True)
@@ -612,14 +593,6 @@ def chat_page():
             st.progress(hour_count / FREE_HOURLY_LIMIT)
             st.caption(f"Hourly: {hour_count}/{FREE_HOURLY_LIMIT}")
 
-        if day_count >= FREE_DAILY_LIMIT * 0.8:  # Show upgrade prompt at 80% usage
-            st.session_state.show_upgrade = True
-
-    # Show upgrade modal if needed
-    if st.session_state.get("show_upgrade", False):
-        show_upgrade_modal()
-        return
-
     # Initialize messages
     if "messages" not in st.session_state:
         st.session_state.messages = user_data["chat_history"].copy()
@@ -633,15 +606,15 @@ def chat_page():
             user_data["chat_history"].append(welcome_msg)
             save_user_db(st.session_state.users_db)
 
-    # Display messages with typing effect
+    # Display all messages
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
-            if msg["role"] == "assistant" and msg.get("is_typing", False):
+            if msg.get("is_typing", False):
                 html(typing_animation())
             else:
                 st.markdown(msg["content"], unsafe_allow_html=True)
 
-    # Chat input with DeepSeek style
+    # Handle user input
     if prompt := st.chat_input("Type your message...", key="chat_input"):
         # Check for duplicate message
         if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:
@@ -662,7 +635,7 @@ def chat_page():
         user_data["chat_history"].append(user_msg)
         save_user_db(st.session_state.users_db)
 
-        # Add temporary typing indicator
+        # Add typing indicator
         typing_msg = {
             "role": "assistant",
             "content": "",
@@ -674,37 +647,22 @@ def chat_page():
 
         # Generate response
         with st.spinner(""):
-            if any(word in prompt.lower() for word in ["image", "picture", "photo", "generate", "draw"]):
-                img_path = generate_image(prompt)
-                if img_path:
-                    # Remove typing indicator
-                    st.session_state.messages.pop()
-                    
-                    img_msg = {
-                        "role": "assistant",
-                        "content": f"![Generated Image]({img_path})",
-                        "premium": is_premium
-                    }
-                    st.session_state.messages.append(img_msg)
-                    user_data["chat_history"].append(img_msg)
-            else:
-                response, _ = generate_response(prompt)
-                
-                # Remove typing indicator
-                st.session_state.messages.pop()
-                
-                ai_msg = {
-                    "role": "assistant",
-                    "content": response,
-                    "premium": is_premium
-                }
-                st.session_state.messages.append(ai_msg)
-                user_data["chat_history"].append(ai_msg)
+            response, _ = generate_response(prompt)
+            
+            # Remove typing indicator and add actual response
+            st.session_state.messages.pop()
+            ai_msg = {
+                "role": "assistant",
+                "content": response,
+                "premium": is_premium
+            }
+            st.session_state.messages.append(ai_msg)
+            user_data["chat_history"].append(ai_msg)
 
         save_user_db(st.session_state.users_db)
         st.rerun()
 
-    # Sidebar with DeepSeek style
+    # Sidebar content
     with st.sidebar:
         st.markdown("""
         <div style="display: flex; align-items: center; margin-bottom: 16px;">

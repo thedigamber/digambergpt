@@ -51,7 +51,7 @@ PREMIUM_WELCOME = [
 
 ROASTS = [
     "अरे भाई, इतना सीरियस क्यों हो रहे हो? 😆",
-    "ऐसे सवाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
+    "ऐसे ���वाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
     "यार तुम्हारे सवाल से तो ChatGPT भी थक जाए! 😴"
 ]
 
@@ -587,10 +587,14 @@ def chat_page():
 
         col1, col2 = st.columns(2)
         with col1:
-            st.progress(day_count / FREE_DAILY_LIMIT)
+            # Clamp the value between 0 and 1 for progress bar
+            daily_progress = min(1.0, max(0.0, day_count / FREE_DAILY_LIMIT))
+            st.progress(daily_progress)
             st.caption(f"Daily: {day_count}/{FREE_DAILY_LIMIT}")
         with col2:
-            st.progress(hour_count / FREE_HOURLY_LIMIT)
+            # Clamp the value between 0 and 1 for progress bar
+            hourly_progress = min(1.0, max(0.0, hour_count / FREE_HOURLY_LIMIT))
+            st.progress(hourly_progress)
             st.caption(f"Hourly: {hour_count}/{FREE_HOURLY_LIMIT}")
 
     # Initialize messages

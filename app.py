@@ -450,11 +450,22 @@ def generate_response(prompt):
 # --- Image Generation Function ---
 def generate_image(prompt):
     try:
-        # This would be replaced with actual image generation API call
-        # For demo purposes, we'll just return a placeholder
-        return "https://via.placeholder.com/500x300?text=Generated+Image+Placeholder"
+        # Call Hugging Face API (based on your token in secrets.toml)
+        api_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2"
+        headers = {
+            "Authorization": f"Bearer {st.secrets['huggingface']['api_token']}"
+        }
+        payload = {"inputs": prompt}
+        response = requests.post(api_url, headers=headers, json=payload)
+
+        if response.status_code == 200:
+            image_bytes = response.content
+            return image_bytes
+        else:
+            st.error(f"Image generation failed. Status code: {response.status_code}")
+            return None
     except Exception as e:
-        st.error(f"Image generation failed: {str(e)}")
+        st.error(f"Image generation error: {str(e)}")
         return None
 
 # --- Authentication Pages ---
@@ -619,6 +630,16 @@ def chat_page():
                 st.markdown(msg["content"], unsafe_allow_html=True)
 
     # Handle user input
+    # --- Optional Image Generation Section ---
+with st.expander("🖼️ Generate Image", expanded=False):
+    img_prompt = st.text_input("Image prompt", key="img_prompt")
+    if st.button("Generate Image", key="generate_image_btn"):
+        if img_prompt.strip():
+            image_data = generate_image(img_prompt)
+            if image_data:
+                st.image(image_data, caption="Generated Image", use_column_width=True)
+        else:
+            st.warning("Please enter a prompt to generate an image.")
     if prompt := st.chat_input("Type your message...", key="chat_input"):
         # Check for duplicate message
         if st.session_state.messages and st.session_state.messages[-1]["content"] == prompt:

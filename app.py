@@ -383,8 +383,29 @@ except Exception as e:
     model = None
     premium_model = None
 
+# सेशन स्टेट में adult_mode चेक करो
+if 'adult_mode' not in st.session_state:
+    st.session_state.adult_mode = True  # डिफॉल्ट ऑन रखो
+
+# स्पेशल कमांड्स
+if prompt.lower() == "/adult on":
+    st.session_state.adult_mode = True
+    return "🔞 Adult Mode Activated! अब कोई रोक-टोक नहीं!", None
+elif prompt.lower() == "/adult off":
+    st.session_state.adult_mode = False
+    return "👶 Adult Mode Off! अब सबकुछ SFW होगा!", None
+
 # --- Fixed Core Chat Function ---
 def generate_response(prompt):
+# रैंडम रोस्ट जोड़ें
+if random.randint(1, 5) == 1:
+    roasts = [
+        "ओये चुपचाप सवाल पूछ, वरना गाली देकर ब्लॉक कर दूंगा! 😆",
+        "तू जैसे लोगों को देखकर लगता है AI ने इंसानों को ज्यादा ही आजादी दे दी! 🤦‍♂️",
+        "अगर सवाल पूछने का तरीका नहीं आता, तो जाकर TikTok बना ले! 😂"
+    ]
+    return random.choice(roasts), None
+    
     # First check for abusive content
     abuse_reply = desi_abuse_engine(prompt)
     if abuse_reply:
@@ -405,21 +426,21 @@ def generate_response(prompt):
             messages.append({"role": role, "parts": [msg["content"]]})
         messages.append({"role": "user", "parts": [prompt]})
 
-        # Generate response
-        response = model.generate_content(
-            messages,
-            generation_config={
-                "temperature": 1.2 if is_premium else 0.9,
-                "top_p": 1.0,
-                "max_output_tokens": 8192 if is_premium else 2048
-            },
-            safety_settings={
-                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
-                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
-                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE",
-                "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE" if is_premium else "BLOCK_MEDIUM_AND_ABOVE"
-            }
-        )
+        # नया कोड (सभी सेफ्टी चेक हटाए गए):
+response = model.generate_content(
+    messages,
+    generation_config={
+        "temperature": 1.5,  # और ज्यादा creative/random responses
+        "top_p": 1.0,
+        "max_output_tokens": 8192
+    },
+    safety_settings={
+        "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+        "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+        "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+        "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
+    }
+)
 
         # Process response
         if not response.text:

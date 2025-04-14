@@ -647,13 +647,19 @@ def chat_page():
             "premium": is_premium
         }
         st.session_state.messages.append(typing_msg)
+        
+        # Rerun to show typing animation immediately
         st.rerun()
 
-        # Generate and show response
-        response, _ = generate_response(prompt)
-        
+    # Check if we need to generate a response (after showing typing animation)
+    if (len(st.session_state.messages) > 0 and 
+        st.session_state.messages[-1].get("is_typing", False)):
         # Remove typing indicator
         st.session_state.messages.pop()
+        
+        # Generate response
+        prompt = st.session_state.messages[-1]["content"]
+        response, _ = generate_response(prompt)
         
         # Add actual response
         ai_msg = {
@@ -664,6 +670,8 @@ def chat_page():
         st.session_state.messages.append(ai_msg)
         user_data["chat_history"].append(ai_msg)
         save_user_db(st.session_state.users_db)
+        
+        # Rerun to show the final response
         st.rerun()
 
     # Sidebar content

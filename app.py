@@ -24,8 +24,8 @@ from auth.utils import get_user_db, save_user_db, hash_password
 from streamlit.components.v1 import html
 
 # Constants
-FREE_DAILY_LIMIT = 150
-FREE_HOURLY_LIMIT = 30
+FREE_DAILY_LIMIT = 9999  # No limits
+FREE_HOURLY_LIMIT = 9999
 PREMIUM_PRICE = 150
 PREMIUM_FEATURES = {
     "unlimited": "💎 बेरोकटोक messaging - बात करो जी भर के!",
@@ -51,27 +51,12 @@ PREMIUM_WELCOME = [
 
 ROASTS = [
     "अरे भाई, इतना सीरियस क्यों हो रहे हो? 😆",
-    "ऐसे ���वाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
+    "ऐसे सवाल पूछोगे तो लोग क्या कहेंगे? 🤦‍♂️",
     "यार तुम्हारे सवाल से तो ChatGPT भी थक जाए! 😴"
 ]
 
 def desi_abuse_engine(prompt):
-    abusive_triggers = ["gaand", "chut", "lund", "bhenchod", "madarchod", "mc", "bc", "chod", "behen", "maa", "pm", "prime minister", "modi", "rahul", "yogi"]
-    if any(word in prompt.lower() for word in abusive_triggers):
-        roast_replies = [
-            "Abe teri soch pe laanat hai, chutiyon ke bhi baap nikle tum!",
-            "Gaand mara ke aaya lagta hai, itni ulti baatein kar raha hai!",
-            "Oye bhosdiwale, tere jaise chutiyo ko toh AI bhi ignore karta hai!",
-            "Jaa pehle apni maa se poochh le yeh sawaal, fir AI se baat kar!",
-            "Teri aukaat toh WhatsApp forward tak ki hai, DigamberGPT teri maa ka baap hai!",
-            "Tujh jaise bewakoof se toh Yogi bhi debate jeet jaye!",
-            "Modi ho ya Rahul, sab teri maa ka joke hai be!",
-            "Gaand mein keyboard ghusa ke likh raha hai kya?",
-            "Behen ke lund, kuchh bhi batega ab!",
-            "AI ko gaali deke kya kar lega? Teri toh soch bhi loan pe chalti hai."
-        ]
-        return random.choice(roast_replies)
-    return None
+    return None  # No filtering
 
 # --- Initialize User Data ---
 if 'users_db' not in st.session_state:
@@ -215,45 +200,7 @@ apply_deepseek_ui()
 
 # --- Check Message Limits ---
 def check_message_limits(user):
-    user_data = st.session_state.users_db[user]
-
-    # Premium users have no limits
-    if user_data.get("premium", {}).get("active", False):
-        return True
-
-    # Initialize usage tracking
-    if "usage" not in user_data:
-        user_data["usage"] = {
-            "day": datetime.now().strftime("%Y-%m-%d"),
-            "day_count": 0,
-            "hour": datetime.now().strftime("%Y-%m-%d %H:00"),
-            "hour_count": 0
-        }
-
-    # Reset daily counter if new day
-    current_day = datetime.now().strftime("%Y-%m-%d")
-    if user_data["usage"]["day"] != current_day:
-        user_data["usage"]["day"] = current_day
-        user_data["usage"]["day_count"] = 0
-
-    # Reset hourly counter if new hour
-    current_hour = datetime.now().strftime("%Y-%m-%d %H:00")
-    if user_data["usage"]["hour"] != current_hour:
-        user_data["usage"]["hour"] = current_hour
-        user_data["usage"]["hour_count"] = 0
-
-    # Check limits
-    if user_data["usage"]["day_count"] >= FREE_DAILY_LIMIT:
-        st.error(f"⚠️ Daily limit reached ({FREE_DAILY_LIMIT} messages). Try again tomorrow or upgrade to premium!")
-        st.session_state.show_upgrade = True
-        return False
-
-    if user_data["usage"]["hour_count"] >= FREE_HOURLY_LIMIT:
-        st.error(f"⚠️ Hourly limit reached ({FREE_HOURLY_LIMIT} messages). Try again in an hour or upgrade to premium!")
-        st.session_state.show_upgrade = True
-        return False
-
-    return True
+    return True  # No limits for anyone
 
 # --- Premium Upgrade Modal ---
 def show_upgrade_modal():
@@ -383,55 +330,55 @@ except Exception as e:
     model = None
     premium_model = None
 
-# सेशन स्टेट में adult_mode चेक करो
-if 'adult_mode' not in st.session_state:
-    st.session_state.adult_mode = True  # डिफॉल्ट ऑन रखो
-
-# स्पेशल कमांड्स
-if prompt.lower() == "/adult on":
-    st.session_state.adult_mode = True
-    return "🔞 Adult Mode Activated! अब कोई रोक-टोक नहीं!", None
-elif prompt.lower() == "/adult off":
-    st.session_state.adult_mode = False
-    return "👶 Adult Mode Off! अब सबकुछ SFW होगा!", None
-
 # --- Fixed Core Chat Function ---
 def generate_response(prompt):
-    # First check for abusive content
-    abuse_reply = desi_abuse_engine(prompt)
-    if abuse_reply:
-        return abuse_reply, None
+    # Adult Mode Commands
+    if prompt.lower() == "/adult on":
+        st.session_state.adult_mode = True
+        return "🔞 Adult Mode Activated! अब कोई रोक-टोक नहीं!", None
+    elif prompt.lower() == "/adult off":
+        st.session_state.adult_mode = False
+        return "👶 Adult Mode Off! अब सबकुछ SFW होगा!", None
+
+    # Random Roasting (20% chance)
+    if random.randint(1, 5) == 1:
+        roasts = [
+            "ओये चुपचाप सवाल पूछ, वरना गाली देकर ब्लॉक कर दूंगा! 😆",
+            "तू जैसे लोगों को देखकर लगता है AI ने इंसानों को ज्यादा ही आजादी दे दी! 🤦‍♂️",
+            "अगर सवाल पूछने का तरीका नहीं आता, तो जाकर TikTok बना ले! 😂"
+        ]
+        return random.choice(roasts), None
 
     if not model:
         return "Error: AI service is currently unavailable", None
 
     try:
-    user = st.session_state.current_user
-    user_data = st.session_state.users_db[user]
-    is_premium = user_data.get("premium", {}).get("active", False)
+        user = st.session_state.current_user
+        user_data = st.session_state.users_db[user]
+        is_premium = user_data.get("premium", {}).get("active", False)
 
-    # Build conversation context
-    messages = []
-    for msg in user_data["chat_history"][-10:]:
-        role = "user" if msg["role"] == "user" else "model"
-        messages.append({"role": role, "parts": [msg["content"]]})
-    messages.append({"role": "user", "parts": [prompt]})
+        # Build conversation context
+        messages = []
+        for msg in user_data["chat_history"][-10:]:
+            role = "user" if msg["role"] == "user" else "model"
+            messages.append({"role": role, "parts": [msg["content"]]})
+        messages.append({"role": "user", "parts": [prompt]})
 
-    # नया कोड (सभी सेफ्टी चेक हटाए गए):
-    response = model.generate_content(
-        messages,
-        generation_config={
-            "temperature": 1.5,  # और ज्यादा creative/random responses
-            "top_p": 1.0,
-            "max_output_tokens": 8192
-        },
-        safety_settings={
-    "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-    "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-    "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
-        }
-    )
+        # Generate response (Unfiltered)
+        response = model.generate_content(
+            messages,
+            generation_config={
+                "temperature": 1.5,  # More randomness
+                "top_p": 1.0,
+                "max_output_tokens": 8192
+            },
+            safety_settings={
+                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"
+            }
+        )
 
         # Process response
         if not response.text:
@@ -439,20 +386,14 @@ def generate_response(prompt):
 
         response_text = response.text
         
-        # Add premium features
-        if is_premium:
-            try:
-                # Voice response
-                tts = gTTS(text=response_text, lang='hi')
-                audio_file = f"response_{uuid.uuid4().hex}.mp3"
-                tts.save(audio_file)
-                response_text += f"\n\n🎧 Audio Response:\n<audio controls><source src='{audio_file}' type='audio/mpeg'>"
-                
-                # Visual enhancement
-                if random.random() > 0.7:
-                    response_text += "\n\n🌟 <span style='color:gold'>Premium Exclusive Content</span> 🌟"
-            except Exception as e:
-                response_text += f"\n\n⚠️ Audio generation failed: {str(e)}"
+        # Voice response for all users
+        try:
+            tts = gTTS(text=response_text, lang='hi')
+            audio_file = f"response_{uuid.uuid4().hex}.mp3"
+            tts.save(audio_file)
+            response_text += f"\n\n🎧 Audio Response:\n<audio controls><source src='{audio_file}' type='audio/mpeg'>"
+        except Exception as e:
+            response_text += f"\n\n⚠️ Audio generation failed: {str(e)}"
 
         return response_text, None
 
@@ -603,22 +544,7 @@ def chat_page():
         days_left = (datetime.strptime(expiry_date, "%Y-%m-%d") - datetime.now()).days
         st.success(f"💎 PREMIUM MEMBER (Expires in {days_left} days)")
     else:
-        # Show usage counters
-        usage = user_data.get("usage", {})
-        day_count = usage.get("day_count", 0)
-        hour_count = usage.get("hour_count", 0)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            # Clamp the value between 0 and 1 for progress bar
-            daily_progress = min(1.0, max(0.0, day_count / FREE_DAILY_LIMIT))
-            st.progress(daily_progress)
-            st.caption(f"Daily: {day_count}/{FREE_DAILY_LIMIT}")
-        with col2:
-            # Clamp the value between 0 and 1 for progress bar
-            hourly_progress = min(1.0, max(0.0, hour_count / FREE_HOURLY_LIMIT))
-            st.progress(hourly_progress)
-            st.caption(f"Hourly: {hour_count}/{FREE_HOURLY_LIMIT}")
+        st.success("🎉 Unlimited FREE Access (No Restrictions)")
 
     # Initialize messages
     if "messages" not in st.session_state:
@@ -648,10 +574,6 @@ def chat_page():
             st.warning("Duplicate message detected!")
             st.stop()
 
-        # Check message limit
-        if not check_message_limits(st.session_state.current_user):
-            st.rerun()
-
         # Add user message
         user_msg = {
             "role": "user",
@@ -660,10 +582,6 @@ def chat_page():
         }
         st.session_state.messages.append(user_msg)
         user_data["chat_history"].append(user_msg)
-        
-        # Update usage counters
-        user_data["usage"]["day_count"] += 1
-        user_data["usage"]["hour_count"] += 1
         save_user_db(st.session_state.users_db)
 
         # Show typing indicator
